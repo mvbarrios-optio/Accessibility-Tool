@@ -1,0 +1,19 @@
+{
+  "name": "a11y-audit",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "lighthouse": "^13.4.1",
+    "pdf-lib": "^1.17.1",
+    "playwright": "^1.62.1"
+  }
+}

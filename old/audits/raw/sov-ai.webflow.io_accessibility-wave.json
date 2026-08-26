@@ -1,0 +1,97 @@
+{
+  "url": "https://sov-ai.webflow.io/accessibility",
+  "aimScore": 10,
+  "totalItems": 36,
+  "categories": [
+    {
+      "category": "Features",
+      "title": "Alternative text",
+      "summary": "Image alternative text is present.",
+      "count": 6
+    },
+    {
+      "category": "Features",
+      "title": "Null or empty alternative text",
+      "summary": "Alternative text is null or empty (alt=\"\").",
+      "count": 3
+    },
+    {
+      "category": "Features",
+      "title": "Linked image with alternative text",
+      "summary": "Alternative text is present for an image that is within a link.",
+      "count": 1
+    },
+    {
+      "category": "Features",
+      "title": "Skip link",
+      "summary": "A link is present which allows users to skip over navigation or other content.",
+      "count": 1
+    },
+    {
+      "category": "Features",
+      "title": "Skip link target",
+      "summary": "A target for a \"skip\" link is present.",
+      "count": 1
+    },
+    {
+      "category": "Features",
+      "title": "Language",
+      "summary": "The language of the document or a page element is identified.",
+      "count": 1
+    },
+    {
+      "category": "Structural Elements",
+      "title": "Heading level 1",
+      "summary": "A first level heading (<h1> element) is present.",
+      "count": 1
+    },
+    {
+      "category": "Structural Elements",
+      "title": "Navigation",
+      "summary": "A <nav> element or navigation landmark is present.",
+      "count": 1
+    },
+    {
+      "category": "Structural Elements",
+      "title": "Main content",
+      "summary": "A <main> element or main landmark is present.",
+      "count": 1
+    },
+    {
+      "category": "Structural Elements",
+      "title": "Footer",
+      "summary": "A <footer> element or contentinfo landmark is present.",
+      "count": 1
+    },
+    {
+      "category": "ARIA",
+      "title": "ARIA",
+      "summary": "An ARIA role, state, or property is present.",
+      "count": 3
+    },
+    {
+      "category": "ARIA",
+      "title": "ARIA label",
+      "summary": "An aria-label or aria-labelledby attribute is present.",
+      "count": 12
+    },
+    {
+      "category": "ARIA",
+      "title": "ARIA tabindex",
+      "summary": "A tabindex value of 0 or less is present.",
+      "count": 2
+    },
+    {
+      "category": "ARIA",
+      "title": "ARIA button",
+      "summary": "An element with role=\"button\" is present.",
+      "count": 1
+    },
+    {
+      "category": "ARIA",
+      "title": "ARIA expanded",
+      "summary": "An aria-expanded attribute is present.",
+      "count": 1
+    }
+  ]
+}
