@@ -11,7 +11,7 @@
 // step is never reported as a pass — the command exits non-zero.
 const { spawnSync } = require('child_process');
 const fs = require('fs');
-const { interactive, ask, close } = require('./ask');
+const { interactive, ask, askYesNo, close, release } = require('./ask');
 
 const args = process.argv.slice(2);
 const has = name => args.some(a => a === `--${name}` || a.startsWith(`--${name}=`));
@@ -43,7 +43,7 @@ async function ensurePages() {
   if (!interactive) {
     console.error('✗ urls.json is empty, so there is nothing to scan.\n');
     console.error('  Build the list from the site\'s sitemap:');
-    console.error('    npm run urls:sitemap -- https://www.example.com --write\n');
+    console.error('    npm run urls:find -- https://www.example.com --write\n');
     console.error('  Or fill in urls.json by hand — urls.example.json shows the shape.');
     console.error('  Then run `npm start` again.');
     process.exit(1);
@@ -72,10 +72,9 @@ async function ensurePages() {
 
   // Hand stdin over cleanly: the child asks its own questions from here.
   console.log(`\nLooking for the page list on ${site}…\n`);
-  close();
-  process.stdin.pause();
+  release();
 
-  const res = spawnSync(process.execPath, ['sitemap-to-urls.js', site], { stdio: 'inherit' });
+  const res = spawnSync(process.execPath, ['find-pages.js', site], { stdio: 'inherit' });
   if (res.error) {
     console.error(`\n✗ Could not run the page finder — ${res.error.message}`);
     process.exit(1);
@@ -205,17 +204,36 @@ async function main() {
     console.log('\n✓ All automated scans finished. Raw evidence is in audits/raw/.');
   }
 
-  console.log('\nNext steps — these two are what make the audit complete:');
-  console.log('  1. npm run audit:manual                 answers the keyboard / screen-reader /');
-  console.log('                                          judgement checks by asking you one');
-  console.log('                                          question at a time (saves as you go)');
-  console.log('  2. npm run report:findings -- --label "Baseline"');
-  console.log('                                          builds audits/reports/findings-report.md');
-  console.log('\nAutomated tools cover roughly 30% of WCAG 2.2 A/AA. Step 1 covers the rest —');
-  console.log('see COVERAGE.md for which tool verifies which criterion.\n');
+  console.log('\nAutomated tools cover roughly 30% of WCAG 2.2 A/AA — the questions below');
+  console.log('cover the rest. See COVERAGE.md for which tool verifies which criterion.');
 
   // An incomplete scan set must not look like a clean pass to a script or a CI job.
   if (failed.length) process.exitCode = 1;
+
+  // Offer the rest of the audit rather than leaving two more commands to find.
+  if (!interactive) {
+    console.log('\nNext steps — these two are what make the audit complete:');
+    console.log('  1. npm run audit:manual                 the keyboard / screen-reader /');
+    console.log('                                          judgement questions (saves as you go)');
+    console.log('  2. npm run report:findings -- --label "Baseline"');
+    console.log('                                          builds audits/reports/findings-report.md\n');
+    return;
+  }
+
+  const doManual = await askYesNo(
+    '\nThe manual questions are what make the audit complete. Start them now?', true);
+  if (doManual) {
+    release();
+    const res = spawnSync(process.execPath, ['manual-audit.js'], { stdio: 'inherit' });
+    if (res.error) console.error(`✗ Could not start the questions — ${res.error.message}`);
+    // manual-audit.js prints its own progress and the report command on exit.
+    return;
+  }
+
+  console.log('\nWhen you are ready, the rest of the audit is:');
+  console.log('  npm run audit:manual                    the questions (resumable)');
+  console.log('  npm run report:findings -- --label "Baseline"   the report\n');
+  close();
 }
 
 main().catch(err => {

@@ -1,12 +1,19 @@
-// Builds urls.json from a sitemap, so the page list doesn't have to be typed by hand.
+// Builds urls.json so the page list doesn't have to be typed by hand: from the
+// site's sitemap when there is one, or by following the site's own links when
+// there isn't.
 //
-//   node sitemap-to-urls.js https://www.example.com                 # finds the sitemap itself
-//   node sitemap-to-urls.js https://www.example.com/sitemap.xml     # or point straight at one
-//   node sitemap-to-urls.js ./sitemap.xml                           # or a local file
+//   node find-pages.js https://www.example.com                 # finds the sitemap itself
+//   node find-pages.js https://www.example.com/sitemap.xml     # or point straight at one
+//   node find-pages.js ./sitemap.xml                           # or a local file
+//   node find-pages.js https://www.example.com --crawl         # skip the sitemap, follow links
+//
+// Plenty of sites have no sitemap — a Webflow site without the SEO sitemap
+// setting turned on returns 404 for /sitemap.xml. When none is found this
+// offers to crawl instead, which needs nothing from the site but working links.
 //
 // Previews by default and writes nothing. Add --write once the list looks right:
 //
-//   node sitemap-to-urls.js https://www.example.com --write
+//   node find-pages.js https://www.example.com --write
 //
 // Options:
 //   --write               write urls.json (existing file is backed up to urls.json.bak)
@@ -17,6 +24,8 @@
 //   --sample[=n]          keep n URLs per page template (default 1) — see below
 //   --keep-query          keep query strings (they are stripped by default)
 //   --host=<hostname>     rewrite every URL onto this host (see below)
+//   --crawl               find pages by following links instead of a sitemap
+//   --max-pages=<n>       cap on pages visited while crawling (default 150)
 //   --max-sitemaps=<n>    cap on nested sitemap fetches (default 50)
 //
 // --host exists because a staging site's sitemap usually lists the PRODUCTION
@@ -25,7 +34,7 @@
 // that list would audit production while you believed you were auditing
 // staging, so a host mismatch is reported loudly and --host fixes it:
 //
-//   node sitemap-to-urls.js https://your-site.webflow.io --host=your-site.webflow.io
+//   node find-pages.js https://your-site.webflow.io --host=your-site.webflow.io
 //
 // Handles sitemap index files (nested sitemaps), gzipped sitemaps, robots.txt
 // discovery, and the usual XML entity escaping. No new dependencies: Node's own
@@ -48,10 +57,10 @@ const valueOf = (name, fallback = null) => {
   return hit ? hit.split('=').slice(1).join('=') : fallback;
 };
 
-const KNOWN = ['write', 'append', 'include', 'exclude', 'limit', 'sample', 'keep-query', 'host', 'max-sitemaps', 'help'];
+const KNOWN = ['write', 'append', 'include', 'exclude', 'limit', 'sample', 'keep-query', 'host', 'crawl', 'max-pages', 'max-sitemaps', 'help'];
 const unknown = flags.filter(f => !KNOWN.includes(f.replace(/^--/, '').split('=')[0]));
 
-const USAGE = `Usage: node sitemap-to-urls.js <site-url | sitemap-url | local-file> [options]
+const USAGE = `Usage: node find-pages.js <site-url | sitemap-url | local-file> [options]
 
   --write             write urls.json (previews only without it)
   --append            merge with the current urls.json instead of replacing it
@@ -62,13 +71,16 @@ const USAGE = `Usage: node sitemap-to-urls.js <site-url | sitemap-url | local-fi
   --keep-query        keep query strings (stripped by default)
   --host=<hostname>   rewrite every URL onto this host (for staging sitemaps
                       that list production URLs, e.g. Webflow's *.webflow.io)
+  --crawl             find pages by following the site's links, for sites with
+                      no sitemap (offered automatically when none is found)
+  --max-pages=<n>     cap on pages visited while crawling (default 150)
   --max-sitemaps=<n>  cap on nested sitemap fetches (default 50)
 
 Examples:
-  node sitemap-to-urls.js https://www.example.com
-  node sitemap-to-urls.js https://www.example.com --exclude='/tag/|/author/' --write
-  node sitemap-to-urls.js https://www.example.com --sample --limit=25 --write
-  node sitemap-to-urls.js https://site.webflow.io --host=site.webflow.io --write`;
+  node find-pages.js https://www.example.com
+  node find-pages.js https://www.example.com --exclude='/tag/|/author/' --write
+  node find-pages.js https://www.example.com --sample --limit=25 --write
+  node find-pages.js https://site.webflow.io --host=site.webflow.io --write`;
 
 if (has('help') || !positional.length) {
   console.log(USAGE);
@@ -85,6 +97,8 @@ const WRITE = has('write');
 const APPEND = has('append');
 const KEEP_QUERY = has('keep-query');
 const MAX_SITEMAPS = Number(valueOf('max-sitemaps', 50));
+const CRAWL = has('crawl');
+const MAX_PAGES = Number(valueOf('max-pages', 150));
 const LIMIT = valueOf('limit') ? Number(valueOf('limit')) : null;
 const SAMPLE = has('sample') ? Number(valueOf('sample', 1)) : null;
 
@@ -105,7 +119,8 @@ if (has('host')) {
   }
 }
 
-for (const [label, value] of [['--limit', LIMIT], ['--sample', SAMPLE], ['--max-sitemaps', MAX_SITEMAPS]]) {
+for (const [label, value] of [['--limit', LIMIT], ['--sample', SAMPLE],
+  ['--max-sitemaps', MAX_SITEMAPS], ['--max-pages', MAX_PAGES]]) {
   if (value !== null && (!Number.isFinite(value) || value < 1)) {
     console.error(`✗ ${label} needs a positive whole number.`);
     process.exit(1);
@@ -316,44 +331,200 @@ function sampleByTemplate(urls, perTemplate) {
   return { kept, report };
 }
 
+// ── Crawling, for sites with no sitemap ──────────────────────────────────────
+// Follows the site's own links from the starting page, breadth-first, staying on
+// the same origin. Needs nothing from the site but working links.
+//
+// robots.txt is deliberately not consulted here. Every Webflow staging domain
+// serves "Disallow: /", so honouring it would make this useless for exactly the
+// case it exists for — auditing your own unpublished site. Use this on sites you
+// are responsible for; the caps below keep it gentle either way.
+const SKIP_EXTENSIONS = /\.(pdf|zip|docx?|xlsx?|pptx?|csv|jpe?g|png|gif|svg|webp|avif|ico|mp4|webm|mov|mp3|wav|woff2?|ttf|otf|eot|js|css|json|xml|rss|txt)$/i;
+const CRAWL_CONCURRENCY = 4;
+
+function linksIn(html, base) {
+  const out = [];
+  for (const m of html.matchAll(/<a\b[^>]*\shref\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi)) {
+    let raw = m[1].trim().replace(/^['"]|['"]$/g, '');
+    raw = decodeEntities(raw).trim();
+    if (!raw || /^(#|mailto:|tel:|javascript:|data:|sms:)/i.test(raw)) continue;
+    try {
+      const u = new URL(raw, base);
+      if (!/^https?:$/.test(u.protocol)) continue;
+      u.hash = '';
+      out.push(u);
+    } catch (e) { /* an unparseable href is not a page */ }
+  }
+  return out;
+}
+
+async function fetchHtml(url) {
+  const res = await fetch(url, {
+    redirect: 'follow',
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+    headers: { 'User-Agent': 'a11y-audit-toolkit page finder' }
+  });
+  if (!res.ok) return { ok: false, why: `${res.status} ${res.statusText}` };
+  const type = res.headers.get('content-type') || '';
+  // Only HTML has links worth following, and only HTML is a page to audit.
+  if (!/text\/html|application\/xhtml/i.test(type)) return { ok: false, why: `not HTML (${type.split(';')[0]})` };
+  return { ok: true, html: await res.text(), finalUrl: res.url || url };
+}
+
+async function crawl(startUrl) {
+  const origin = new URL(startUrl).origin;
+  const queued = new Set([new URL(startUrl).toString()]);
+  const found = [];
+  const failures = [];
+  let frontier = [new URL(startUrl).toString()];
+
+  console.log(`Crawling ${origin} (following links, up to ${MAX_PAGES} pages)…`);
+
+  while (frontier.length && found.length < MAX_PAGES) {
+    // Small batches: enough to be quick, few enough to stay polite.
+    const batch = frontier.splice(0, CRAWL_CONCURRENCY);
+    const next = [];
+
+    await Promise.all(batch.map(async (url) => {
+      if (found.length >= MAX_PAGES) return;
+      let result;
+      try {
+        result = await fetchHtml(url);
+      } catch (err) {
+        failures.push(`${url} — ${err.name === 'TimeoutError' ? 'timed out' : err.message}`);
+        return;
+      }
+      if (!result.ok) {
+        failures.push(`${url} — ${result.why}`);
+        return;
+      }
+
+      found.push(url);
+      if (found.length % 10 === 0) console.log(`  …${found.length} pages so far`);
+
+      for (const link of linksIn(result.html, url)) {
+        if (link.origin !== origin) continue;               // same site only
+        if (SKIP_EXTENSIONS.test(link.pathname)) continue;   // assets, not pages
+        const key = link.toString();
+        if (queued.has(key)) continue;
+        queued.add(key);
+        next.push(key);
+      }
+    }));
+
+    frontier.push(...next);
+  }
+
+  console.log(`  ${found.length} page(s) reached.`);
+  if (frontier.length && found.length >= MAX_PAGES) {
+    console.log(`  ⚠ Stopped at the ${MAX_PAGES}-page cap with ${frontier.length} link(s) still unvisited.`);
+    console.log(`    The list is incomplete — raise it with --max-pages=<n> if you need all of them.`);
+  }
+  if (failures.length) {
+    console.log(`  ${failures.length} link(s) skipped (not a page, or would not load):`);
+    for (const f of failures.slice(0, 5)) console.log(`      ${f}`);
+    if (failures.length > 5) console.log(`      …and ${failures.length - 5} more`);
+  }
+  // A page unreachable by links is a page this cannot find — say so once, here,
+  // rather than letting an incomplete list look authoritative later.
+  console.log(`  Note: only pages reachable by following links are found. Anything`);
+  console.log(`  unlinked (or behind a login) has to be added to urls.json by hand.`);
+  return found;
+}
+
 // ── Run ──────────────────────────────────────────────────────────────────────
-(async () => {
-  let entryPoints;
-  try {
-    if (/^https?:\/\//i.test(source) && !/\.xml(\.gz)?$/i.test(source) && !/sitemap/i.test(source)) {
-      console.log(`Looking for a sitemap on ${source}…`);
-      entryPoints = await discover(source);
-    } else {
-      entryPoints = [source];
+const isWebAddress = /^https?:\/\//i.test(source);
+
+// A site with no sitemap is common, not exceptional, so it must not be a dead
+// end: offer the crawl instead of printing an error and stopping.
+async function crawlFallback(reason) {
+  if (!isWebAddress) return null;   // nothing to crawl from a local file
+  console.log(`\n${reason}`);
+
+  if (!CRAWL) {
+    if (!interactive) {
+      console.error(`\n✗ No sitemap, and not running in a terminal so this cannot be asked.`);
+      console.error(`  Re-run following the site's links instead:`);
+      console.error(`    node find-pages.js ${source} --crawl --write`);
+      process.exit(1);
     }
-  } catch (err) {
-    console.error(`✗ ${err.message}`);
-    process.exit(1);
+    const go = await askYesNo(
+      `\nFind the pages by following the site's links instead?`, true);
+    if (!go) {
+      console.log(`\nNothing found, so nothing saved.`);
+      console.log(`You can list the pages by hand in urls.json — urls.example.json shows the shape.`);
+      close();
+      process.exit(1);
+    }
+  }
+  console.log('');
+  return crawl(source);
+}
+
+(async () => {
+  let entryPoints = null;
+  let found = null;
+  let usedCrawl = false;
+
+  if (CRAWL && isWebAddress) {
+    // Explicitly asked for: skip the sitemap entirely.
+    console.log('');
+    found = await crawl(source);
+    usedCrawl = true;
+  } else {
+    try {
+      if (isWebAddress && !/\.xml(\.gz)?$/i.test(source) && !/sitemap/i.test(source)) {
+        console.log(`Looking for a sitemap on ${source}…`);
+        entryPoints = await discover(source);
+      } else {
+        entryPoints = [source];
+      }
+    } catch (err) {
+      found = await crawlFallback(`✗ ${err.message}`);
+      usedCrawl = found !== null;
+      if (!found) {
+        console.error(`✗ ${err.message}`);
+        process.exit(1);
+      }
+    }
   }
 
-  console.log('\nReading sitemaps:');
-  let found, readErrors, fetchedCount;
-  try {
-    const result = await collect(entryPoints);
-    found = result.urls;
-    readErrors = result.errors;
-    fetchedCount = result.fetched;
-  } catch (err) {
-    console.error(`✗ ${err.message}`);
-    process.exit(1);
-  }
+  if (found === null) {
+    console.log('\nReading sitemaps:');
+    let readErrors, fetchedCount;
+    try {
+      const result = await collect(entryPoints);
+      found = result.urls;
+      readErrors = result.errors;
+      fetchedCount = result.fetched;
+    } catch (err) {
+      console.error(`✗ ${err.message}`);
+      process.exit(1);
+    }
 
-  // Nothing readable at all is a different problem from a readable file with no
-  // URLs in it, and saying "is that really a sitemap?" for a 404 sends the user
-  // looking in the wrong place.
-  if (!fetchedCount) {
-    console.error(`\n✗ Could not read any sitemap:`);
-    for (const message of readErrors) console.error(`    ${message}`);
-    process.exit(1);
+    // Nothing readable at all is a different problem from a readable file with
+    // no URLs in it, and saying "is that really a sitemap?" for a 404 sends the
+    // user looking in the wrong place.
+    if (!fetchedCount) {
+      const detail = readErrors.map(m => `    ${m}`).join('\n');
+      found = await crawlFallback(`✗ Could not read any sitemap:\n${detail}`);
+      usedCrawl = found !== null;
+      if (!found) {
+        console.error(`\n✗ Could not read any sitemap:\n${detail}`);
+        process.exit(1);
+      }
+    } else if (!found.length) {
+      found = await crawlFallback('✗ No <loc> entries found in the sitemap(s) read.');
+      usedCrawl = found !== null;
+      if (!found) {
+        console.error('\n✗ No <loc> entries found in the sitemap(s) read. Is that really a sitemap?');
+        process.exit(1);
+      }
+    }
   }
 
   if (!found.length) {
-    console.error('\n✗ No <loc> entries found in the sitemap(s) read. Is that really a sitemap?');
+    console.error('\n✗ No pages found.');
     process.exit(1);
   }
 
@@ -382,7 +553,7 @@ function sampleByTemplate(urls, perTemplate) {
 
   // ── Report ────────────────────────────────────────────────────────────────
   console.log(`\n${'─'.repeat(60)}`);
-  console.log(`Found in sitemap(s):   ${startCount}`);
+  console.log(`${usedCrawl ? 'Found by crawling:  ' : 'Found in sitemap(s): '} ${String(startCount).padStart(4)}`);
   console.log(`After de-duplication:  ${afterDedupe}`);
   if (include || exclude) console.log(`After include/exclude: ${afterFilters}`);
   if (SAMPLE) console.log(`After --sample=${SAMPLE}:${' '.repeat(Math.max(1, 9 - String(SAMPLE).length))}${beforeLimit}`);
@@ -409,10 +580,14 @@ function sampleByTemplate(urls, perTemplate) {
   // thing this script can hand over: the list looks right, and the audit silently
   // measures the wrong site. Never let that pass without saying so.
   const hosts = [...new Set(urls.map(u => new URL(u).host))];
+  // A crawl only ever returns same-origin URLs, so a mismatch is impossible
+  // there; only a sitemap can list a different host.
   let sourceHost = null;
-  try {
-    if (/^https?:\/\//i.test(source)) sourceHost = new URL(source).host;
-  } catch (e) { /* local file: nothing to compare against */ }
+  if (!usedCrawl && isWebAddress) {
+    try {
+      sourceHost = new URL(source).host;
+    } catch (e) { /* not an address we can compare against */ }
+  }
 
   if (sourceHost && !hosts.includes(sourceHost)) {
     console.log(`\n${'!'.repeat(64)}`);
@@ -441,7 +616,7 @@ function sampleByTemplate(urls, perTemplate) {
       // Non-interactive: cannot ask, so must not guess.
       console.log(`  Not running in a terminal, so this cannot be asked. Re-run with the`);
       console.log(`  address you want, e.g.:`);
-      console.log(`    node sitemap-to-urls.js ${source} --host=${sourceHost} --write`);
+      console.log(`    node find-pages.js ${source} --host=${sourceHost} --write`);
       console.log(`  Continuing with the addresses the sitemap lists (${hosts[0]}).`);
     }
   } else if (REWRITE) {

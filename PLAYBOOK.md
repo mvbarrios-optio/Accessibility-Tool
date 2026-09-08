@@ -16,7 +16,7 @@ agent session with browser access.
 
 - Confirm `urls.json` lists every page in scope. If the page inventory changed, update
   this file first — everything downstream keys off it. To rebuild it from the site's
-  sitemap: `npm run urls:sitemap -- https://www.example.com --write`. Keep the same list
+  sitemap: `npm run urls:find -- https://www.example.com --write`. Keep the same list
   for the retest, or the two passes aren't comparable; if you scoped the baseline with
   `--sample`, record which pages it covered.
 - Decide the date stamp for this pass (the baseline date, or today's date for a retest)
@@ -179,14 +179,20 @@ Walks every criterion that needs human judgement, with the test steps inline. Fa
 recorded here (pages, component, severity, evidence filename) flow straight into the
 findings report. This step is what makes the audit *complete*.
 
+Answer `?` on any criterion the person running the pass cannot judge. It is recorded as
+needing accessibility expertise and appears in the report under "Needs accessibility
+expertise" as an open gap — the audit stays honest, and the row is a handover item rather
+than a guess. Do not let a pass be recorded on anything nobody actually verified.
+
 ### 12. Generate the findings report **(you, terminal)**
 
 ```
 npm run report:findings -- --label "Baseline 2026-08"
 ```
 Writes `audits/reports/findings-report.md` + `findings.json`. The report shows all 55
-criteria with a status each — anything still ⬜ NOT TESTED or 🔎 AUTO-CLEAN means the audit
-isn't finished; go back to step 11.
+criteria with a status each — anything still ⬜ NOT TESTED, 🔎 AUTO-CLEAN or 🙋 NEEDS
+EXPERT means the audit isn't finished. The first two go back to step 11; NEEDS EXPERT rows
+need a specialist to answer them.
 
 ### 13. Fix guide **(Claude)**
 

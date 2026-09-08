@@ -15,6 +15,7 @@ const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
 
 let rl = null;
 let stdinClosed = false;
+let releasing = false;
 const bufferedLines = [];
 const waitingAsks = [];
 
@@ -30,6 +31,8 @@ function ensureReadline() {
     if (w) w(l.trim()); else bufferedLines.push(l.trim());
   });
   rl.on('close', () => {
+    // A deliberate hand-off is not the user ending input: keep asking possible.
+    if (releasing) return;
     stdinClosed = true;
     while (waitingAsks.length) waitingAsks.shift()('');
   });
@@ -85,4 +88,17 @@ function close() {
   if (rl && !stdinClosed) rl.close();
 }
 
-module.exports = { interactive, ask, askYesNo, askChoice, close };
+// Give stdin to a child process that asks its own questions, then take it back.
+// Without this, a second round of prompts after spawning a child would see a
+// closed readline, resolve every question to '' and silently take the defaults.
+function release() {
+  releasing = true;
+  if (rl) { rl.close(); rl = null; }
+  releasing = false;
+  stdinClosed = false;
+  bufferedLines.length = 0;
+  waitingAsks.length = 0;
+  process.stdin.pause();
+}
+
+module.exports = { interactive, ask, askYesNo, askChoice, close, release };

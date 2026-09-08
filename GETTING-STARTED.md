@@ -70,17 +70,31 @@ From that one answer it finds the site's sitemap (via `robots.txt` or the usual 
 following nested sitemaps), shows you the pages, and asks whether to save them. Nothing is
 written until you say yes, and an existing list is backed up to `urls.json.bak` first.
 
+**If the site has no sitemap**, that is not a dead end — it offers to find the pages by
+following the site's own links instead:
+
+```
+✗ no sitemap found for https://www.your-site.com. Checked robots.txt, /sitemap.xml, …
+
+Find the pages by following the site's links instead? [Y/n]
+```
+
+Say yes and it walks the site from the home page. It only finds pages that are actually
+linked, so anything unlinked or behind a login still has to be added by hand — it tells
+you that rather than letting the list look complete.
+
 To run just that step on its own:
 
 ```bash
-npm run urls:sitemap -- https://www.your-site.com
+npm run urls:find -- https://www.your-site.com            # sitemap, then offers to crawl
+npm run urls:find -- https://www.your-site.com --crawl    # go straight to following links
 ```
 
 Big sites need trimming, because a sitemap is usually much larger than an audit scope:
 
 ```bash
-npm run urls:sitemap -- https://www.your-site.com --exclude='/tag/|/author/'
-npm run urls:sitemap -- https://www.your-site.com --sample --limit=25
+npm run urls:find -- https://www.your-site.com --exclude='/tag/|/author/'
+npm run urls:find -- https://www.your-site.com --sample --limit=25
 ```
 
 `--sample` keeps one page per template (`/blog/*`, `/products/*`, …) and tells you exactly
@@ -187,10 +201,19 @@ If the site has no login and no special states, you can skip this step.
 npm run audit:manual
 ```
 
-- It shows you each criterion in turn: what it means, what the automated tools already
-  covered, and the concrete steps to test it by hand.
-- You answer with one letter: `p` pass · `f` fail · `n` not applicable · `s` skip for now ·
-  `q` save and quit.
+- It shows you each criterion in turn, numbered `[12/54]` so you know how far along you
+  are: what it means, what the automated tools already covered, and the concrete steps to
+  test it by hand.
+- `npm start` offers to start these for you when the scans finish, so you don't have to
+  remember the command.
+- You answer with one letter: `p` pass · `f` fail · `n` not applicable ·
+  **`?` I can't judge this** · `s` skip for now · `q` save and quit.
+- **Use `?` freely.** Plenty of these criteria need real accessibility knowledge — live
+  captions, flashing content, whether alt text is actually meaningful. `?` records that a
+  person looked and could not decide, and asks what blocked you. The report then lists it
+  under "Needs accessibility expertise" as an open gap, with your note, so it goes to
+  someone qualified instead of being guessed at as a pass. Guessing `p` is the one thing
+  that makes an audit worse than not doing it.
 - If you answer `f`, it asks for: affected pages, component, what's wrong, severity, and
   optionally the evidence screenshot — all of which goes straight into the report.
 - **It saves after every answer.** Quit with `q` and pick it up another day: on the next
@@ -226,10 +249,14 @@ Produces:
 - ✅ PASS — verified.
 - 🔎 AUTO-CLEAN — the tools found nothing, but the manual check is still pending.
   **Not a pass yet.**
+- 🙋 NEEDS EXPERT — someone looked and could not judge it (answered `?`). An open gap,
+  listed separately with whatever note they left, ready to hand to a specialist.
 - ⬜ NOT TESTED — no source touched it. The audit isn't complete while any of these remain.
 - ➖ N/A — marked not applicable during the manual audit.
 
-If AUTO-CLEAN or NOT TESTED rows remain, go back to step 4 and close them.
+If AUTO-CLEAN, NEEDS EXPERT or NOT TESTED rows remain, the audit is not finished. Go back
+to step 4 for the first and last; NEEDS EXPERT rows need someone with accessibility
+expertise to answer them.
 
 ---
 
@@ -263,9 +290,12 @@ folder): the before/after comparison is the evidence that the fixes landed.
 
 - **"could not launch Chromium/Firefox/WebKit"** → the browsers aren't installed:
   run `npm run setup`, or `npx playwright install chromium firefox webkit`.
-- **"no sitemap found"** → the site may not publish one, or it lives at an unusual path.
-  Pass the sitemap URL directly, or fill `urls.json` in by hand. On Webflow, check that
-  *Site settings → SEO → Sitemap → auto-generate* is on and the site has been published.
+- **"no sitemap found"** → say yes to the crawl it offers, or pass the sitemap URL
+  directly if it lives at an unusual path. On Webflow, check that *Site settings → SEO →
+  Sitemap → auto-generate* is on and the site has been published.
+- **The crawl found fewer pages than you expected** → it can only follow links. Pages that
+  nothing links to, or that sit behind a login, have to be added to `urls.json` by hand.
+  Raise `--max-pages=<n>` if it stopped at the cap (it says so when it does).
 - **"These pages are on a different address than the one you gave"** → normal for a
   staging site, whose sitemap lists the live addresses. Just answer the question: 1 for
   the address you typed, 2 for what the sitemap lists. In a script, pass
