@@ -7,11 +7,13 @@ script; `PLAYBOOK.md` has the formal evidence procedure. This file is the practi
 If you only remember three commands, remember these:
 
 ```bash
-npm run setup                                              # once per machine
-npm run urls:sitemap -- https://www.your-site.com --write  # build the page list
-npm start                                                  # all the automated scans
-npm run report:findings -- --label "Baseline"              # the report
+npm run setup                                    # once per machine
+npm start                                        # asks for the site, then scans it
+npm run report:findings -- --label "Baseline"    # the report
 ```
+
+You do not need to edit any file or remember any option: `npm start` asks which site to
+check, finds its pages itself, and asks about anything it can't decide on its own.
 
 Everything below explains what those do and what to do in between.
 
@@ -55,16 +57,24 @@ npx playwright install chromium firefox webkit
 one URL per page. Every scan (axe, Lighthouse, extra-checks) reads from there — to audit a
 different site you change only that list, without touching any script.
 
-The fastest way to fill it is from the site's own sitemap:
+**You normally don't touch this file.** The first time you run `npm start` it asks:
 
-```bash
-npm run urls:sitemap -- https://www.your-site.com            # preview the list
-npm run urls:sitemap -- https://www.your-site.com --write    # save it to urls.json
+```
+No pages to check yet — let's find them.
+
+Which site do you want to check? (e.g. www.example.com)
+> www.your-site.com
 ```
 
-You only need the site's address — it finds the sitemap itself (via `robots.txt` or the
-usual paths) and follows nested sitemaps. It shows you the list and writes nothing until
-you add `--write`, and it backs up any existing `urls.json` to `urls.json.bak`.
+From that one answer it finds the site's sitemap (via `robots.txt` or the usual paths,
+following nested sitemaps), shows you the pages, and asks whether to save them. Nothing is
+written until you say yes, and an existing list is backed up to `urls.json.bak` first.
+
+To run just that step on its own:
+
+```bash
+npm run urls:sitemap -- https://www.your-site.com
+```
 
 Big sites need trimming, because a sitemap is usually much larger than an audit scope:
 
@@ -77,14 +87,20 @@ npm run urls:sitemap -- https://www.your-site.com --sample --limit=25
 what it left out. It's a good way to scope a first pass — but the pages left out are not
 audited, so don't treat a sampled run as full coverage.
 
-**Auditing a staging site?** Its sitemap almost certainly lists the *production* URLs.
-Webflow does this: `https://your-site.webflow.io/sitemap.xml` exists, but the URLs inside
-point at the live domain. The script spots the mismatch and warns you; add `--host` to
-rewrite them onto the domain you actually want to scan:
+**Auditing a staging site?** Its sitemap almost certainly lists the *production*
+addresses. Webflow does this: `https://your-site.webflow.io/sitemap.xml` exists, but the
+addresses inside point at the live domain. You don't need to do anything about it — it
+notices and asks:
 
-```bash
-npm run urls:sitemap -- https://your-site.webflow.io --host=your-site.webflow.io --write
 ```
+  1) your-site.webflow.io
+     the address you gave (usually the staging or test site)
+  2) www.your-live-domain.com
+     what the sitemap lists (usually the live site)
+Choose 1-2 [1]:
+```
+
+Pick 1 and every address is rewritten onto the staging site.
 
 If a Webflow site serves no sitemap at all, it's turned off rather than unavailable:
 enable *Site settings → SEO → Sitemap → auto-generate* (paid site plan), publish, and it
@@ -250,10 +266,10 @@ folder): the before/after comparison is the evidence that the fixes landed.
 - **"no sitemap found"** → the site may not publish one, or it lives at an unusual path.
   Pass the sitemap URL directly, or fill `urls.json` in by hand. On Webflow, check that
   *Site settings → SEO → Sitemap → auto-generate* is on and the site has been published.
-- **"HOST MISMATCH" warning** → the sitemap lists a different domain than the one you
-  pointed at, which is normal for staging sites. Re-run with
-  `--host=<the domain you want to scan>`, or ignore it if you did mean to audit the
-  domain the sitemap lists.
+- **"These pages are on a different address than the one you gave"** → normal for a
+  staging site, whose sitemap lists the live addresses. Just answer the question: 1 for
+  the address you typed, 2 for what the sitemap lists. In a script, pass
+  `--host=<the address you want>` instead.
 - **"Dependencies are not installed yet"** → run `npm run setup` before `npm start`.
 - **A page fails with a timeout** → raise the allowance:
   `NAV_TIMEOUT=90000 npm start`.

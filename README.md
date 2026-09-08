@@ -4,8 +4,9 @@ Scripts for running a full WCAG 2.2 A/AA audit against any website: an automated
 (axe, Lighthouse, WAVE), the automated checks those tools miss, a guided manual pass for
 everything that needs human judgement, and one merged findings report at the end.
 
-It is site-agnostic. Point `urls.json` at the pages in scope and nothing else needs
-editing — no script contains a hardcoded domain, selector, or client name.
+It is site-agnostic, and it asks for what it needs: `npm start` asks which site to check,
+finds its pages from the sitemap, and scans them. No script contains a hardcoded domain,
+selector, or client name.
 
 The axe pass runs in **all three Playwright engines** by default — Chromium, Firefox and
 WebKit (Safari's engine) — so engine-specific accessibility differences (computed
@@ -14,7 +15,8 @@ being hidden behind a single browser. See "Browser engines" below.
 
 ## Quick start — from zero to a findings report
 
-Four commands, in order. You need Node.js ≥ 18 and npm installed; nothing else.
+Four commands, in order. You need Node.js ≥ 18 and npm installed; nothing else. The
+toolkit asks for anything it needs, so none of these require flags or editing a file.
 
 **1. Set up, once per machine:**
 
@@ -25,37 +27,32 @@ npm run setup
 Installs the dependencies and the three scan browsers (~1GB, a few minutes), then tells
 you what to do next. Re-running it is safe.
 
-**2. Tell it what to scan.** The quickest way is to build the list from the site's own
-sitemap — it finds the sitemap for you, so a bare site URL is enough:
-
-```bash
-npm run urls:sitemap -- https://www.example.com             # preview the list
-npm run urls:sitemap -- https://www.example.com --write     # save it to urls.json
-```
-
-It previews and writes nothing until you add `--write`, so you can check the list first.
-See "Building the page list" below for filtering large sites.
-
-Or fill in `urls.json` by hand — it ships empty, and `urls.example.json` shows the shape:
-
-```json
-[
-  "https://www.example.com",
-  "https://www.example.com/about",
-  "https://www.example.com/contact"
-]
-```
-
-**3. Run every automated scan with one command:**
+**2. Run it:**
 
 ```bash
 npm start
 ```
 
-That runs all three automated passes in order — axe-core in Chromium, Firefox and WebKit,
-then Lighthouse, then the extra checks axe misses (reflow, zoom, focus, target size…) —
-prints progress as it goes, and ends with a summary of what produced evidence and what
-didn't. The `audits/` folders are created for you. Useful variations:
+The first time, there is no page list yet, so it asks — no flags, no files to edit:
+
+```
+No pages to check yet — let's find them.
+
+Which site do you want to check? (e.g. www.example.com)
+> www.example.com
+```
+
+From that one answer it finds the site's sitemap, shows you the pages it found, asks
+whether to save the list, and then runs every automated scan. If anything about the list
+needs a decision — most often a staging site whose sitemap lists the live addresses — it
+asks that too, in plain words. Nothing is written until you say yes.
+
+The scans themselves are all three automated passes in order — axe-core in Chromium,
+Firefox and WebKit, then Lighthouse, then the extra checks axe misses (reflow, zoom, focus,
+target size…). It prints progress as it goes and ends with a summary of what produced
+evidence and what didn't. The `audits/` folders are created for you.
+
+On later runs it reuses the saved list and goes straight to scanning. Useful variations:
 
 ```bash
 npm start -- --fast                  # skip the ~10s/page animation waits
@@ -69,14 +66,14 @@ Each pass can still be run on its own — see "Running each tool" below.
 menu, form errors), paste `console-snippet.js` into DevTools on that page and save the
 JSON it copies into `audits/raw/` — the file header has the exact steps.
 
-**4. Answer the human-judgement checks** (keyboard, screen reader, judgement calls —
-resumable, saves after every answer):
+**3. Answer the human-judgement checks** (keyboard, screen reader, judgement calls — it
+asks one question at a time, and saves after every answer so you can stop and resume):
 
 ```bash
 npm run audit:manual
 ```
 
-**5. Build the findings report:**
+**4. Build the findings report:**
 
 ```bash
 npm run report:findings -- --label "Baseline"
@@ -97,6 +94,7 @@ not required just to find and fix issues.
 a11y-audit-toolkit/
   setup.js                   `npm run setup` — installs dependencies + the three browsers
   sitemap-to-urls.js         `npm run urls:sitemap` — builds urls.json from a sitemap
+  ask.js                     Shared terminal prompts (safe in CI: never blocks on input)
   run-scans.js               `npm start` — runs axe + Lighthouse + extra checks in one go
   urls.json                  Pages to scan (ships empty)
   urls.example.json          The shape urls.json expects
@@ -123,8 +121,12 @@ a11y-audit-toolkit/
 
 ## Building the page list
 
-`urls.json` is the only file you have to fill in, and `sitemap-to-urls.js` fills it from
-the site's sitemap so a large site doesn't have to be typed out:
+`urls.json` is the only file that has to be filled in, and you should never have to do it
+by hand: `npm start` asks for the site and builds the list for you the first time. This
+section is for running that step on its own, or controlling exactly what goes in.
+
+`sitemap-to-urls.js` fills the list from the site's sitemap so a large site doesn't have to
+be typed out:
 
 ```bash
 npm run urls:sitemap -- https://www.example.com                  # auto-find the sitemap
@@ -132,8 +134,9 @@ npm run urls:sitemap -- https://www.example.com/sitemap.xml      # or name it di
 npm run urls:sitemap -- ./sitemap.xml                            # or a local file
 ```
 
-It previews by default and writes nothing; add `--write` to save. An existing `urls.json`
-is copied to `urls.json.bak` first, so a hand-curated list is never lost.
+Run in a terminal it shows the list and asks whether to save it. Add `--write` to skip
+that question (needed when scripting, where it never asks anything). An existing
+`urls.json` is copied to `urls.json.bak` first, so a hand-curated list is never lost.
 
 What it handles: sitemap discovery via `robots.txt` and the conventional paths, sitemap
 *index* files (nested sitemaps, including ones hosted on another domain), gzipped
@@ -143,7 +146,7 @@ stripping query strings. No extra dependencies — it uses Node's own `fetch` an
 Options:
 
 ```
---write               save to urls.json (previews only without it)
+--write               save without asking (required outside a terminal)
 --append              merge with the current urls.json instead of replacing it
 --include=<regex>     keep only URLs matching this pattern
 --exclude=<regex>     drop URLs matching this pattern
@@ -192,22 +195,37 @@ exactly:
   path rather than by declaration. That works, and auditing your own staging site is the
   intended use.
 
-So a bare run against a staging domain hands you production URLs. The script detects the
-mismatch and refuses to be quiet about it:
+So a bare run against a staging domain would hand you production URLs. Rather than doing
+that quietly, it stops and asks which site you actually meant:
 
 ```
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-⚠ HOST MISMATCH — these URLs are NOT on your-site.webflow.io
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  You pointed at:      your-site.webflow.io
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+These pages are on a different address than the one you gave.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  You asked about:     your-site.webflow.io
   The sitemap lists:   www.your-live-domain.com
+
+  This is normal for a staging site: its sitemap lists the LIVE addresses.
+  Which site do you want to check?
+
+  1) your-site.webflow.io
+     the address you gave (usually the staging or test site)
+  2) www.your-live-domain.com
+     what the sitemap lists (usually the live site)
+Choose 1-2 [1]:
 ```
 
-Fix it with `--host`, which rewrites every URL onto the host you actually want to scan:
+Pick 1 and every URL is rewritten onto the staging domain. Nothing to remember and nothing
+to re-run.
+
+When scripting (no terminal to ask in), `--host` does the same thing non-interactively:
 
 ```bash
 npm run urls:sitemap -- https://your-site.webflow.io --host=your-site.webflow.io --write
 ```
+
+Outside a terminal it never guesses: it says it cannot ask, names the flag, and continues
+with the addresses the sitemap actually lists.
 
 `--host` also accepts a full origin, so the same production sitemap can be pointed at a
 local dev server:

@@ -33,6 +33,7 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const { interactive, askYesNo, askChoice, close } = require('./ask');
 
 const TIMEOUT_MS = Number(process.env.SITEMAP_TIMEOUT || 20000);
 
@@ -414,17 +415,35 @@ function sampleByTemplate(urls, perTemplate) {
   } catch (e) { /* local file: nothing to compare against */ }
 
   if (sourceHost && !hosts.includes(sourceHost)) {
-    console.log(`\n${'!'.repeat(60)}`);
-    console.log(`⚠ HOST MISMATCH — these URLs are NOT on ${sourceHost}`);
-    console.log(`${'!'.repeat(60)}`);
-    console.log(`  You pointed at:      ${sourceHost}`);
+    console.log(`\n${'!'.repeat(64)}`);
+    console.log(`These pages are on a different address than the one you gave.`);
+    console.log(`${'!'.repeat(64)}`);
+    console.log(`  You asked about:     ${sourceHost}`);
     console.log(`  The sitemap lists:   ${hosts.join(', ')}`);
-    console.log(`\n  A staging sitemap normally lists the site's PRODUCTION URLs — Webflow's`);
-    console.log(`  *.webflow.io domains do exactly this. Scanning this list as-is would audit`);
-    console.log(`  ${hosts[0]}, not ${sourceHost}.`);
-    console.log(`\n  To audit ${sourceHost} instead, add --host:`);
-    console.log(`    node sitemap-to-urls.js ${source} --host=${sourceHost} --write`);
-    console.log(`\n  If you did mean to audit ${hosts[0]}, this list is already correct.`);
+    console.log(`\n  This is normal for a staging site: its sitemap lists the LIVE addresses.`);
+    console.log(`  Which site do you want to check?\n`);
+
+    if (interactive) {
+      const choice = await askChoice('', [
+        { label: sourceHost, hint: `the address you gave (usually the staging or test site)` },
+        { label: hosts[0], hint: `what the sitemap lists (usually the live site)` }
+      ], 0);
+
+      if (choice === 0) {
+        // Re-normalise onto the host the user actually wants to check.
+        REWRITE = { host: sourceHost, protocol: new URL(source).protocol };
+        urls = [...new Set(urls.map(normalise).filter(Boolean))].sort();
+        console.log(`\n✓ Using ${sourceHost}.`);
+      } else {
+        console.log(`\n✓ Using ${hosts[0]}.`);
+      }
+    } else {
+      // Non-interactive: cannot ask, so must not guess.
+      console.log(`  Not running in a terminal, so this cannot be asked. Re-run with the`);
+      console.log(`  address you want, e.g.:`);
+      console.log(`    node sitemap-to-urls.js ${source} --host=${sourceHost} --write`);
+      console.log(`  Continuing with the addresses the sitemap lists (${hosts[0]}).`);
+    }
   } else if (REWRITE) {
     console.log(`\n✓ Every URL rewritten onto ${REWRITE.host}.`);
   }
@@ -437,10 +456,20 @@ function sampleByTemplate(urls, perTemplate) {
   // ── Write ─────────────────────────────────────────────────────────────────
   const target = './urls.json';
 
-  if (!WRITE) {
-    console.log(`\nPreview only — urls.json was not touched.`);
-    console.log(`Re-run with --write to save these ${urls.length} page(s).`);
-    return;
+  let write = WRITE;
+  if (!write) {
+    if (interactive) {
+      write = await askYesNo(`\nSave these ${urls.length} page(s) as the list to audit?`, true);
+      if (!write) {
+        console.log('Nothing saved — urls.json is unchanged.');
+        close();
+        return;
+      }
+    } else {
+      console.log(`\nPreview only — urls.json was not touched.`);
+      console.log(`Re-run with --write to save these ${urls.length} page(s).`);
+      return;
+    }
   }
 
   let final = urls;
@@ -468,6 +497,7 @@ function sampleByTemplate(urls, perTemplate) {
   }
 
   fs.writeFileSync(target, JSON.stringify(final, null, 2) + '\n');
-  console.log(`\n✓ Wrote ${final.length} page(s) to urls.json`);
+  console.log(`\n✓ Saved ${final.length} page(s) to urls.json`);
   console.log(`\nNext:  npm start`);
+  close();
 })();

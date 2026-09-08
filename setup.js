@@ -61,11 +61,8 @@ console.log('\n─────────────────────�
 console.log('✓ Setup complete.\n');
 
 if (!urlCount) {
-  console.log('Next: tell it which pages to audit. Easiest way, straight from the sitemap:\n');
-  console.log('      npm run urls:sitemap -- https://www.your-site.com            (preview)');
-  console.log('      npm run urls:sitemap -- https://www.your-site.com --write    (save it)\n');
-  console.log('      Or edit urls.json by hand (urls.example.json shows the shape).\n');
-  console.log('Then run the scans:\n');
+  console.log('Next: just run the scans. It will ask which site to check and find');
+  console.log('      its pages for you:\n');
   console.log('      npm start\n');
 } else {
   console.log(`urls.json already lists ${urlCount} page(s). To run the automated scans:\n`);
