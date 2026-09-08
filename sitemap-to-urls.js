@@ -16,7 +16,16 @@
 //   --limit=<n>           keep at most n URLs (after include/exclude/sample)
 //   --sample[=n]          keep n URLs per page template (default 1) — see below
 //   --keep-query          keep query strings (they are stripped by default)
+//   --host=<hostname>     rewrite every URL onto this host (see below)
 //   --max-sitemaps=<n>    cap on nested sitemap fetches (default 50)
+//
+// --host exists because a staging site's sitemap usually lists the PRODUCTION
+// URLs. Webflow is the common case: https://<site>.webflow.io/sitemap.xml is
+// served, but every <loc> inside points at the site's live domain. Scanning
+// that list would audit production while you believed you were auditing
+// staging, so a host mismatch is reported loudly and --host fixes it:
+//
+//   node sitemap-to-urls.js https://your-site.webflow.io --host=your-site.webflow.io
 //
 // Handles sitemap index files (nested sitemaps), gzipped sitemaps, robots.txt
 // discovery, and the usual XML entity escaping. No new dependencies: Node's own
@@ -38,7 +47,7 @@ const valueOf = (name, fallback = null) => {
   return hit ? hit.split('=').slice(1).join('=') : fallback;
 };
 
-const KNOWN = ['write', 'append', 'include', 'exclude', 'limit', 'sample', 'keep-query', 'max-sitemaps', 'help'];
+const KNOWN = ['write', 'append', 'include', 'exclude', 'limit', 'sample', 'keep-query', 'host', 'max-sitemaps', 'help'];
 const unknown = flags.filter(f => !KNOWN.includes(f.replace(/^--/, '').split('=')[0]));
 
 const USAGE = `Usage: node sitemap-to-urls.js <site-url | sitemap-url | local-file> [options]
@@ -50,12 +59,15 @@ const USAGE = `Usage: node sitemap-to-urls.js <site-url | sitemap-url | local-fi
   --limit=<n>         keep at most n URLs
   --sample[=n]        keep n URLs per page template (default 1)
   --keep-query        keep query strings (stripped by default)
+  --host=<hostname>   rewrite every URL onto this host (for staging sitemaps
+                      that list production URLs, e.g. Webflow's *.webflow.io)
   --max-sitemaps=<n>  cap on nested sitemap fetches (default 50)
 
 Examples:
   node sitemap-to-urls.js https://www.example.com
   node sitemap-to-urls.js https://www.example.com --exclude='/tag/|/author/' --write
-  node sitemap-to-urls.js https://www.example.com --sample --limit=25 --write`;
+  node sitemap-to-urls.js https://www.example.com --sample --limit=25 --write
+  node sitemap-to-urls.js https://site.webflow.io --host=site.webflow.io --write`;
 
 if (has('help') || !positional.length) {
   console.log(USAGE);
@@ -74,6 +86,23 @@ const KEEP_QUERY = has('keep-query');
 const MAX_SITEMAPS = Number(valueOf('max-sitemaps', 50));
 const LIMIT = valueOf('limit') ? Number(valueOf('limit')) : null;
 const SAMPLE = has('sample') ? Number(valueOf('sample', 1)) : null;
+
+// Accepts a bare hostname, host:port, or a full origin — whichever the user types.
+let REWRITE = null;
+if (has('host')) {
+  const raw = (valueOf('host') || '').trim();
+  if (!raw) {
+    console.error('✗ --host needs a hostname, e.g. --host=your-site.webflow.io');
+    process.exit(1);
+  }
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    REWRITE = { host: parsed.host, protocol: /^https?:\/\//i.test(raw) ? parsed.protocol : null };
+  } catch (e) {
+    console.error(`✗ --host is not a valid hostname: ${raw}`);
+    process.exit(1);
+  }
+}
 
 for (const [label, value] of [['--limit', LIMIT], ['--sample', SAMPLE], ['--max-sitemaps', MAX_SITEMAPS]]) {
   if (value !== null && (!Number.isFinite(value) || value < 1)) {
@@ -235,6 +264,10 @@ function normalise(raw) {
     return null;
   }
   if (!/^https?:$/.test(url.protocol)) return null;
+  if (REWRITE) {
+    url.host = REWRITE.host;
+    if (REWRITE.protocol) url.protocol = REWRITE.protocol;
+  }
   url.hash = '';
   if (!KEEP_QUERY) url.search = '';
   // Trailing slashes are the most common source of duplicate entries.
@@ -369,6 +402,31 @@ function sampleByTemplate(urls, perTemplate) {
   if (!urls.length) {
     console.error('\n✗ Nothing left after filtering — loosen --include/--exclude.');
     process.exit(1);
+  }
+
+  // A staging sitemap that lists production URLs is the single most dangerous
+  // thing this script can hand over: the list looks right, and the audit silently
+  // measures the wrong site. Never let that pass without saying so.
+  const hosts = [...new Set(urls.map(u => new URL(u).host))];
+  let sourceHost = null;
+  try {
+    if (/^https?:\/\//i.test(source)) sourceHost = new URL(source).host;
+  } catch (e) { /* local file: nothing to compare against */ }
+
+  if (sourceHost && !hosts.includes(sourceHost)) {
+    console.log(`\n${'!'.repeat(60)}`);
+    console.log(`⚠ HOST MISMATCH — these URLs are NOT on ${sourceHost}`);
+    console.log(`${'!'.repeat(60)}`);
+    console.log(`  You pointed at:      ${sourceHost}`);
+    console.log(`  The sitemap lists:   ${hosts.join(', ')}`);
+    console.log(`\n  A staging sitemap normally lists the site's PRODUCTION URLs — Webflow's`);
+    console.log(`  *.webflow.io domains do exactly this. Scanning this list as-is would audit`);
+    console.log(`  ${hosts[0]}, not ${sourceHost}.`);
+    console.log(`\n  To audit ${sourceHost} instead, add --host:`);
+    console.log(`    node sitemap-to-urls.js ${source} --host=${sourceHost} --write`);
+    console.log(`\n  If you did mean to audit ${hosts[0]}, this list is already correct.`);
+  } else if (REWRITE) {
+    console.log(`\n✓ Every URL rewritten onto ${REWRITE.host}.`);
   }
 
   const preview = urls.slice(0, 15);

@@ -150,6 +150,7 @@ Options:
 --limit=<n>           keep at most n URLs
 --sample[=n]          keep n URLs per page template (default 1)
 --keep-query          keep query strings (stripped by default)
+--host=<hostname>     rewrite every URL onto this host (staging sitemaps)
 --max-sitemaps=<n>    cap on nested sitemap fetches (default 50)
 ```
 
@@ -175,6 +176,50 @@ makes it a sound way to scope a *first* pass. But pages left out are not audited
 real content differences between pages on the same template — image counts, heading
 structure, contrast over different images — genuinely differ. Don't use a sampled run to
 claim a site is covered.
+
+### Staging sites, and Webflow in particular
+
+A staging site's sitemap usually lists the **production** URLs, which makes it easy to
+audit the wrong site without noticing. Webflow is the common case and worth knowing
+exactly:
+
+- `https://<site>.webflow.io/sitemap.xml` **is** served on the staging domain (Webflow
+  serves it with an `application/rss+xml` content type, which is harmless — the body is a
+  normal `<urlset>`).
+- But every `<loc>` inside points at the site's configured live domain, not at
+  `<site>.webflow.io`.
+- Its `robots.txt` is `Disallow: /` with no `Sitemap:` line, so the sitemap is found by
+  path rather than by declaration. That works, and auditing your own staging site is the
+  intended use.
+
+So a bare run against a staging domain hands you production URLs. The script detects the
+mismatch and refuses to be quiet about it:
+
+```
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+⚠ HOST MISMATCH — these URLs are NOT on your-site.webflow.io
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  You pointed at:      your-site.webflow.io
+  The sitemap lists:   www.your-live-domain.com
+```
+
+Fix it with `--host`, which rewrites every URL onto the host you actually want to scan:
+
+```bash
+npm run urls:sitemap -- https://your-site.webflow.io --host=your-site.webflow.io --write
+```
+
+`--host` also accepts a full origin, so the same production sitemap can be pointed at a
+local dev server:
+
+```bash
+npm run urls:sitemap -- https://www.example.com --host=http://localhost:3000 --write
+```
+
+**If a Webflow site serves no sitemap at all**, it is switched off rather than missing:
+turn on *Site settings → SEO → Sitemap → auto-generate* (needs a paid site plan), publish,
+and it appears at `/sitemap.xml`. Failing that, list the pages by hand — Webflow's Pages
+panel and CMS collections are the inventory to copy from.
 
 ## Requirements
 

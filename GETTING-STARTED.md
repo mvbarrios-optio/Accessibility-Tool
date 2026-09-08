@@ -77,6 +77,19 @@ npm run urls:sitemap -- https://www.your-site.com --sample --limit=25
 what it left out. It's a good way to scope a first pass — but the pages left out are not
 audited, so don't treat a sampled run as full coverage.
 
+**Auditing a staging site?** Its sitemap almost certainly lists the *production* URLs.
+Webflow does this: `https://your-site.webflow.io/sitemap.xml` exists, but the URLs inside
+point at the live domain. The script spots the mismatch and warns you; add `--host` to
+rewrite them onto the domain you actually want to scan:
+
+```bash
+npm run urls:sitemap -- https://your-site.webflow.io --host=your-site.webflow.io --write
+```
+
+If a Webflow site serves no sitemap at all, it's turned off rather than unavailable:
+enable *Site settings → SEO → Sitemap → auto-generate* (paid site plan), publish, and it
+appears at `/sitemap.xml`.
+
 Or write the list by hand:
 
 ```json
@@ -235,7 +248,12 @@ folder): the before/after comparison is the evidence that the fixes landed.
 - **"could not launch Chromium/Firefox/WebKit"** → the browsers aren't installed:
   run `npm run setup`, or `npx playwright install chromium firefox webkit`.
 - **"no sitemap found"** → the site may not publish one, or it lives at an unusual path.
-  Pass the sitemap URL directly, or fill `urls.json` in by hand.
+  Pass the sitemap URL directly, or fill `urls.json` in by hand. On Webflow, check that
+  *Site settings → SEO → Sitemap → auto-generate* is on and the site has been published.
+- **"HOST MISMATCH" warning** → the sitemap lists a different domain than the one you
+  pointed at, which is normal for staging sites. Re-run with
+  `--host=<the domain you want to scan>`, or ignore it if you did mean to audit the
+  domain the sitemap lists.
 - **"Dependencies are not installed yet"** → run `npm run setup` before `npm start`.
 - **A page fails with a timeout** → raise the allowance:
   `NAV_TIMEOUT=90000 npm start`.
