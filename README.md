@@ -25,8 +25,18 @@ npm run setup
 Installs the dependencies and the three scan browsers (~1GB, a few minutes), then tells
 you what to do next. Re-running it is safe.
 
-**2. Tell it what to scan.** Open `urls.json` and list every page in scope. It ships
-empty — nothing runs until you fill it. Copy the shape from `urls.example.json`:
+**2. Tell it what to scan.** The quickest way is to build the list from the site's own
+sitemap — it finds the sitemap for you, so a bare site URL is enough:
+
+```bash
+npm run urls:sitemap -- https://www.example.com             # preview the list
+npm run urls:sitemap -- https://www.example.com --write     # save it to urls.json
+```
+
+It previews and writes nothing until you add `--write`, so you can check the list first.
+See "Building the page list" below for filtering large sites.
+
+Or fill in `urls.json` by hand — it ships empty, and `urls.example.json` shows the shape:
 
 ```json
 [
@@ -86,6 +96,7 @@ not required just to find and fix issues.
 ```
 a11y-audit-toolkit/
   setup.js                   `npm run setup` — installs dependencies + the three browsers
+  sitemap-to-urls.js         `npm run urls:sitemap` — builds urls.json from a sitemap
   run-scans.js               `npm start` — runs axe + Lighthouse + extra checks in one go
   urls.json                  Pages to scan (ships empty)
   urls.example.json          The shape urls.json expects
@@ -109,6 +120,61 @@ a11y-audit-toolkit/
     reports/                 Merged PDFs and the findings report
     manual/                  Manual-audit answers (resumable)
 ```
+
+## Building the page list
+
+`urls.json` is the only file you have to fill in, and `sitemap-to-urls.js` fills it from
+the site's sitemap so a large site doesn't have to be typed out:
+
+```bash
+npm run urls:sitemap -- https://www.example.com                  # auto-find the sitemap
+npm run urls:sitemap -- https://www.example.com/sitemap.xml      # or name it directly
+npm run urls:sitemap -- ./sitemap.xml                            # or a local file
+```
+
+It previews by default and writes nothing; add `--write` to save. An existing `urls.json`
+is copied to `urls.json.bak` first, so a hand-curated list is never lost.
+
+What it handles: sitemap discovery via `robots.txt` and the conventional paths, sitemap
+*index* files (nested sitemaps, including ones hosted on another domain), gzipped
+sitemaps, XML entities and CDATA, de-duplication of `/page` against `/page/`, and
+stripping query strings. No extra dependencies — it uses Node's own `fetch` and `zlib`.
+
+Options:
+
+```
+--write               save to urls.json (previews only without it)
+--append              merge with the current urls.json instead of replacing it
+--include=<regex>     keep only URLs matching this pattern
+--exclude=<regex>     drop URLs matching this pattern
+--limit=<n>           keep at most n URLs
+--sample[=n]          keep n URLs per page template (default 1)
+--keep-query          keep query strings (stripped by default)
+--max-sitemaps=<n>    cap on nested sitemap fetches (default 50)
+```
+
+Real sitemaps are often far larger than an audit scope — a site with 124,000 URLs is not
+unusual — so two options exist to cut them down:
+
+```bash
+# Drop the sections that aren't in scope
+npm run urls:sitemap -- https://www.example.com --exclude='/tag/|/author/|/page/[0-9]'
+
+# One page per template, capped at 25, keeping the biggest templates
+npm run urls:sitemap -- https://www.example.com --sample --limit=25
+```
+
+`--sample` groups URLs by page template (`/blog/*`, `/products/*`, …) and keeps one from
+each, ordered homepage-first then largest template first, so a small `--limit` lands on
+the pages representing the most of the site. It prints exactly which templates were
+sampled and how many pages each one left out.
+
+**`--sample` narrows the audit scope, and that's a decision you're making, not a shortcut
+the tool is taking for you.** Accessibility failures are usually template-level, which
+makes it a sound way to scope a *first* pass. But pages left out are not audited, and
+real content differences between pages on the same template — image counts, heading
+structure, contrast over different images — genuinely differ. Don't use a sampled run to
+claim a site is covered.
 
 ## Requirements
 
@@ -312,8 +378,8 @@ generate-report.js     Merges axe + extra + snippet + manual (+ Lighthouse score
 COVERAGE.md            The per-criterion map of which tool verifies what.
 ```
 
-npm scripts: `setup`, `start`, `scan:extra`, `scan:extra:fast`, `scan:filter`,
-`audit:manual`, `audit:manual:list`, `report:findings`.
+npm scripts: `setup`, `urls:sitemap`, `start`, `scan:extra`, `scan:extra:fast`,
+`scan:filter`, `audit:manual`, `audit:manual:list`, `report:findings`.
 
 `extra-checks.js` is Chromium-only by design (layout probes + tab-order simulation);
 engine-specific accessibility-tree differences are already covered by the multi-engine axe

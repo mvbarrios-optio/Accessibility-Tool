@@ -15,7 +15,10 @@ agent session with browser access.
 ## 0. Before you start
 
 - Confirm `urls.json` lists every page in scope. If the page inventory changed, update
-  this file first — everything downstream keys off it.
+  this file first — everything downstream keys off it. To rebuild it from the site's
+  sitemap: `npm run urls:sitemap -- https://www.example.com --write`. Keep the same list
+  for the retest, or the two passes aren't comparable; if you scoped the baseline with
+  `--sample`, record which pages it covered.
 - Decide the date stamp for this pass (the baseline date, or today's date for a retest)
   and whether files should be tagged `before` or `after`.
 - Decide where the evidence pack will be filed (shared drive, ticket attachment, repo

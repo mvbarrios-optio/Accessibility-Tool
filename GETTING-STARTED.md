@@ -7,9 +7,10 @@ script; `PLAYBOOK.md` has the formal evidence procedure. This file is the practi
 If you only remember three commands, remember these:
 
 ```bash
-npm run setup                                      # once per machine
-npm start                                          # all the automated scans
-npm run report:findings -- --label "Baseline"      # the report
+npm run setup                                              # once per machine
+npm run urls:sitemap -- https://www.your-site.com --write  # build the page list
+npm start                                                  # all the automated scans
+npm run report:findings -- --label "Baseline"              # the report
 ```
 
 Everything below explains what those do and what to do in between.
@@ -52,7 +53,31 @@ npx playwright install chromium firefox webkit
 
 **The pages to scan are defined in `urls.json`** (in the toolkit root): a JSON array with
 one URL per page. Every scan (axe, Lighthouse, extra-checks) reads from there — to audit a
-different site you change only that list, without touching any script:
+different site you change only that list, without touching any script.
+
+The fastest way to fill it is from the site's own sitemap:
+
+```bash
+npm run urls:sitemap -- https://www.your-site.com            # preview the list
+npm run urls:sitemap -- https://www.your-site.com --write    # save it to urls.json
+```
+
+You only need the site's address — it finds the sitemap itself (via `robots.txt` or the
+usual paths) and follows nested sitemaps. It shows you the list and writes nothing until
+you add `--write`, and it backs up any existing `urls.json` to `urls.json.bak`.
+
+Big sites need trimming, because a sitemap is usually much larger than an audit scope:
+
+```bash
+npm run urls:sitemap -- https://www.your-site.com --exclude='/tag/|/author/'
+npm run urls:sitemap -- https://www.your-site.com --sample --limit=25
+```
+
+`--sample` keeps one page per template (`/blog/*`, `/products/*`, …) and tells you exactly
+what it left out. It's a good way to scope a first pass — but the pages left out are not
+audited, so don't treat a sampled run as full coverage.
+
+Or write the list by hand:
 
 ```json
 [
@@ -209,6 +234,8 @@ folder): the before/after comparison is the evidence that the fixes landed.
 
 - **"could not launch Chromium/Firefox/WebKit"** → the browsers aren't installed:
   run `npm run setup`, or `npx playwright install chromium firefox webkit`.
+- **"no sitemap found"** → the site may not publish one, or it lives at an unusual path.
+  Pass the sitemap URL directly, or fill `urls.json` in by hand.
 - **"Dependencies are not installed yet"** → run `npm run setup` before `npm start`.
 - **A page fails with a timeout** → raise the allowance:
   `NAV_TIMEOUT=90000 npm start`.

@@ -5,6 +5,7 @@
   "main": "axe-scan.js",
   "scripts": {
     "setup": "node setup.js",
+    "urls:sitemap": "node sitemap-to-urls.js",
     "start": "node run-scans.js",
     "install:browsers": "playwright install chromium firefox webkit",
     "scan:axe": "node axe-scan.js",

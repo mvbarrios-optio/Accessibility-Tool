@@ -33,8 +33,11 @@ try {
 }
 if (!Array.isArray(urls) || !urls.length) {
   console.error('✗ urls.json is empty, so there is nothing to scan.\n');
-  console.error('  Open urls.json and list the pages you want audited, one URL per line.');
-  console.error('  urls.example.json shows the shape. Then run `npm start` again.');
+  console.error('  Build the list from the site\'s sitemap:');
+  console.error('    npm run urls:sitemap -- https://www.example.com            (preview)');
+  console.error('    npm run urls:sitemap -- https://www.example.com --write    (save it)\n');
+  console.error('  Or fill in urls.json by hand — urls.example.json shows the shape.');
+  console.error('  Then run `npm start` again.');
   process.exit(1);
 }
 
