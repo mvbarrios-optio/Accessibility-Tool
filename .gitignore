@@ -1,0 +1,5 @@
+node_modules/
+.DS_Store
+
+# Audit output: regenerated on every pass, and often client data.
+audits/
