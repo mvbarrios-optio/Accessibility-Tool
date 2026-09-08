@@ -1,12 +1,41 @@
 {
-  "name": "a11y-audit",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "a11y-audit-toolkit",
+  "version": "2.0.0",
+  "description": "Site-agnostic WCAG 2.2 A/AA audit toolkit: multi-engine axe, Lighthouse and WAVE evidence, the automated checks axe misses, a guided manual pass, and one merged findings report.",
+  "main": "axe-scan.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "setup": "node setup.js",
+    "start": "node run-scans.js",
+    "install:browsers": "playwright install chromium firefox webkit",
+    "scan:axe": "node axe-scan.js",
+    "scan:axe:chromium": "node axe-scan.js --browsers=chromium",
+    "scan:axe:firefox": "node axe-scan.js --browsers=firefox",
+    "scan:axe:webkit": "node axe-scan.js --browsers=webkit",
+    "scan:lighthouse": "bash lighthouse-scan.sh",
+    "scan:extra": "node extra-checks.js",
+    "scan:extra:fast": "node extra-checks.js --fast",
+    "scan:filter": "node filter-known-artifacts.js",
+    "audit:manual": "node manual-audit.js",
+    "audit:manual:list": "node manual-audit.js --list",
+    "report:findings": "node generate-report.js",
+    "pdf:axe": "node axe-to-pdf.js",
+    "pdf:lighthouse": "node lighthouse-to-pdf.js",
+    "pdf:wave": "node wave-to-pdf.js",
+    "merge": "node merge-pdfs.js",
+    "report": "node combine-report.js",
+    "test": "echo \"No unit tests: this toolkit is verified by running a pass against a known site.\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "accessibility",
+    "a11y",
+    "wcag",
+    "wcag22",
+    "axe-core",
+    "lighthouse",
+    "wave",
+    "playwright",
+    "audit"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -15,5 +44,8 @@
     "lighthouse": "^13.4.1",
     "pdf-lib": "^1.17.1",
     "playwright": "^1.62.1"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

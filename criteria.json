@@ -1,0 +1,478 @@
+{
+  "standard": "WCAG 2.2 Level A and AA",
+  "criteriaCount": 55,
+  "sources": {
+    "axe": "axe-core via axe-scan.js (audits/raw/<page>-axe-<engine>.json)",
+    "lighthouse": "Lighthouse accessibility category via lighthouse-scan.sh (axe-based, Chromium only)",
+    "wave": "WAVE via the browser method in README (audits/raw/<page>-wave.json)",
+    "extra": "extra-checks.js (audits/raw/<page>-extra.json + audits/reports/extra-summary.json)",
+    "snippet": "console-snippet.js pasted into DevTools (audits/raw/<page>-snippet.json)",
+    "manual": "manual-audit.js guided checklist (audits/manual/manual-results.json)"
+  },
+  "criteria": [
+    {
+      "sc": "1.1.1", "name": "Non-text Content", "level": "A",
+      "meaning": "Every image, icon and graphic has an appropriate text alternative. Decorative images have empty alt.",
+      "coverage": { "axe": "partial", "wave": true, "extra": [], "snippet": ["img-alt"], "manual": true },
+      "manualSteps": [
+        "Tools flag MISSING alt text; only a human can judge WRONG alt text. Review every alt found by the snippet's img-alt inventory.",
+        "Check alt text describes purpose, not appearance ('Search' not 'magnifying glass icon'). No filenames as alt.",
+        "Confirm decorative images have alt=\"\" (empty), not a description.",
+        "Check icon-only buttons/links have an accessible name (aria-label or visually hidden text)."
+      ]
+    },
+    {
+      "sc": "1.2.1", "name": "Audio-only and Video-only (Prerecorded)", "level": "A",
+      "meaning": "Alternative provided for audio-only or video-only media.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": ["media-inventory"], "manual": true },
+      "manualSteps": [
+        "Use the snippet's media-inventory to locate every <audio>/<video>/embedded player.",
+        "Audio-only: a full text transcript must be available near the player.",
+        "Video-only (no sound): a text description or audio track describing the visual content."
+      ]
+    },
+    {
+      "sc": "1.2.2", "name": "Captions (Prerecorded)", "level": "A",
+      "meaning": "Captions on all prerecorded video with audio.",
+      "coverage": { "axe": "partial", "wave": false, "extra": [], "snippet": ["media-inventory"], "manual": true },
+      "manualSteps": [
+        "Play every video with audio; confirm accurate synchronised captions exist (not auto-captions with errors).",
+        "For YouTube/Vimeo embeds, check the caption track is real, not auto-generated gibberish."
+      ]
+    },
+    {
+      "sc": "1.2.3", "name": "Audio Description or Media Alternative", "level": "A",
+      "meaning": "Audio description or text alternative for prerecorded video.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": ["media-inventory"], "manual": true },
+      "manualSteps": [
+        "For each video: is all important visual information also spoken in the soundtrack, or is there an audio-description track or full text alternative?"
+      ]
+    },
+    {
+      "sc": "1.2.4", "name": "Captions (Live)", "level": "AA",
+      "meaning": "Captions on live audio content.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Only applies if the site streams live audio/video (webinars, live events). If none, mark N/A."
+      ]
+    },
+    {
+      "sc": "1.2.5", "name": "Audio Description (Prerecorded)", "level": "AA",
+      "meaning": "Audio description track for prerecorded video.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": ["media-inventory"], "manual": true },
+      "manualSteps": [
+        "For each prerecorded video: audio description provided for visual-only information (or the soundtrack already covers it)."
+      ]
+    },
+    {
+      "sc": "1.3.1", "name": "Info and Relationships", "level": "A",
+      "meaning": "Semantic markup: headings, lists, tables, landmarks. ARIA-defined structure carries correct levels.",
+      "coverage": { "axe": "partial", "wave": true, "extra": ["headings", "landmarks"], "snippet": ["headings", "landmarks"], "manual": true },
+      "manualSteps": [
+        "extra-checks validates heading outline and landmarks; still confirm headings match the VISUAL hierarchy (nothing styled as a heading without markup, nothing marked up as a heading for styling).",
+        "Check data tables use real <th> with scope, and visual lists are real <ul>/<ol>.",
+        "Check form groups (radio sets, checkbox sets) use fieldset/legend or an ARIA equivalent."
+      ]
+    },
+    {
+      "sc": "1.3.2", "name": "Meaningful Sequence", "level": "A",
+      "meaning": "DOM order matches visual reading order.",
+      "coverage": { "axe": null, "wave": false, "extra": ["tabindex-positive"], "snippet": ["tabindex-positive"], "manual": true },
+      "manualSteps": [
+        "Read the page with CSS disabled (or via screen reader reading order): does the content order still make sense?",
+        "Watch for CSS order/flex-direction:row-reverse/grid placement that visually reorders content away from DOM order."
+      ]
+    },
+    {
+      "sc": "1.3.3", "name": "Sensory Characteristics", "level": "A",
+      "meaning": "Instructions do not rely on shape, colour, size or position alone.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Search page copy for instructions like 'click the green button', 'see the box on the right', 'the round icon'. Each needs a non-sensory reference too (name/label of the control)."
+      ]
+    },
+    {
+      "sc": "1.3.4", "name": "Orientation", "level": "AA",
+      "meaning": "Content works in both portrait and landscape.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "On a phone or in DevTools device mode, rotate between portrait and landscape: no content or function lost, no 'please rotate your device' block."
+      ]
+    },
+    {
+      "sc": "1.3.5", "name": "Identify Input Purpose", "level": "AA",
+      "meaning": "Autocomplete attributes on name, email and other identified fields.",
+      "coverage": { "axe": "partial", "wave": false, "extra": ["autocomplete"], "snippet": ["autocomplete"], "manual": true },
+      "manualSteps": [
+        "extra-checks flags likely personal-data fields missing autocomplete. Confirm each flagged field really collects data ABOUT THE USER (then it needs the attribute) and that the token is correct (name, email, tel, street-address, postal-code...).",
+        "axe only validates autocomplete values that are present but invalid; it does not flag missing ones."
+      ]
+    },
+    {
+      "sc": "1.4.1", "name": "Use of Colour", "level": "A",
+      "meaning": "Colour is never the only means of conveying information. Links in body copy are distinguishable without colour.",
+      "coverage": { "axe": null, "wave": "partial", "extra": [], "snippet": ["body-links"], "manual": true },
+      "manualSteps": [
+        "Inline links in paragraphs: distinguishable without colour (underline, or 3:1 contrast against surrounding text PLUS a non-colour cue on hover/focus).",
+        "Charts, status indicators, form errors: information also conveyed by text, icon or pattern, not colour alone.",
+        "Quick test: view the page in greyscale (DevTools Rendering > Emulate vision deficiencies > Achromatopsia)."
+      ]
+    },
+    {
+      "sc": "1.4.2", "name": "Audio Control", "level": "A",
+      "meaning": "Any audio over 3 seconds can be paused or muted.",
+      "coverage": { "axe": "partial", "wave": false, "extra": ["autoplay-media"], "snippet": ["autoplay-media"], "manual": true },
+      "manualSteps": [
+        "If extra-checks flags autoplaying media with sound: confirm a visible pause/mute control exists within easy reach.",
+        "If nothing autoplays sound, mark Pass (or N/A if no audio at all)."
+      ]
+    },
+    {
+      "sc": "1.4.3", "name": "Contrast (Minimum)", "level": "AA",
+      "meaning": "4.5:1 for body text, 3:1 for large text. Check all states including hover, focus and disabled.",
+      "coverage": { "axe": "good", "wave": true, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "axe/WAVE only test the DEFAULT state and skip text over images/gradients. Manually check: hover, focus, visited and disabled states; text over hero images; placeholder text.",
+        "Use the DevTools colour picker or a contrast checker for each flagged pair. Record element, foreground, background, ratio."
+      ]
+    },
+    {
+      "sc": "1.4.4", "name": "Resize Text", "level": "AA",
+      "meaning": "Site functions correctly at 200% browser zoom with no loss of content or function.",
+      "coverage": { "axe": "partial", "wave": false, "extra": ["viewport-meta", "zoom-200"], "snippet": ["viewport-meta"], "manual": true },
+      "manualSteps": [
+        "extra-checks catches zoom-blocking meta viewport and horizontal overflow at a 200%-equivalent width. Still do a real browser pass: Cmd/Ctrl+Plus to 200% at 1280x1024.",
+        "Check the sticky header, mobile menu, modals and forms still work; no clipped or overlapping text."
+      ]
+    },
+    {
+      "sc": "1.4.5", "name": "Images of Text", "level": "AA",
+      "meaning": "No text baked into images where real text could be used.",
+      "coverage": { "axe": null, "wave": "partial", "extra": [], "snippet": ["img-alt"], "manual": true },
+      "manualSteps": [
+        "Scan the snippet's image inventory and the pages themselves for images containing text (banners, quotes, stats graphics). Logos are exempt.",
+        "Any text-in-image that could be HTML+CSS is a fail."
+      ]
+    },
+    {
+      "sc": "1.4.10", "name": "Reflow", "level": "AA",
+      "meaning": "At 400% zoom (320 CSS px) content reflows with no horizontal scrolling, except maps, video and true 2-D tables.",
+      "coverage": { "axe": null, "wave": false, "extra": ["reflow-320"], "snippet": [], "manual": true },
+      "manualSteps": [
+        "extra-checks detects horizontal overflow at 320 CSS px and names the offending elements. Confirm in a real browser: 400% zoom in a 1280px window.",
+        "Check content is USABLE, not just non-scrolling: menus open, forms submit, nothing overlaps.",
+        "List and justify any permitted exceptions (maps, video, data tables)."
+      ]
+    },
+    {
+      "sc": "1.4.11", "name": "Non-text Contrast", "level": "AA",
+      "meaning": "3:1 for UI component boundaries, form field borders, focus indicators and meaningful graphics.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Check at 3:1 against adjacent colours: form field borders, checkbox/radio outlines, focus rings, icons that carry meaning, chart elements.",
+        "Include hover/focus/disabled states. Use the DevTools colour picker on each."
+      ]
+    },
+    {
+      "sc": "1.4.12", "name": "Text Spacing", "level": "AA",
+      "meaning": "No loss of content when line height, paragraph, letter and word spacing are increased.",
+      "coverage": { "axe": null, "wave": false, "extra": ["text-spacing"], "snippet": ["text-spacing"], "manual": true },
+      "manualSteps": [
+        "extra-checks injects the WCAG spacing values and reports newly clipped/overflowing elements. Visually confirm each flagged element and anything with fixed heights containing text."
+      ]
+    },
+    {
+      "sc": "1.4.13", "name": "Content on Hover or Focus", "level": "AA",
+      "meaning": "Tooltips and hover panels are dismissible, hoverable and persistent.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "For every tooltip, dropdown-on-hover and mega-menu: (1) can you dismiss it with Esc without moving the pointer? (2) can you move the pointer onto the popup without it closing? (3) does it stay until dismissed?"
+      ]
+    },
+    {
+      "sc": "2.1.1", "name": "Keyboard", "level": "A",
+      "meaning": "All functionality operable by keyboard alone.",
+      "coverage": { "axe": "partial", "wave": false, "extra": ["focus-visible"], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Unplug the mouse. Tab/Shift+Tab through every template: reach EVERY control (menus, accordions, carousels, sliders, custom widgets), operate it (Enter/Space/arrows), and exit it.",
+        "Watch for click-only handlers on divs/spans — the extra-checks focus pass lists what is reachable; anything interactive that never receives focus is a fail."
+      ]
+    },
+    {
+      "sc": "2.1.2", "name": "No Keyboard Trap", "level": "A",
+      "meaning": "Focus can always move away from a component, including modals and the mobile menu.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Open every modal, video embed and the mobile menu with the keyboard; confirm Tab cycles inside sensibly and Esc (or a close button) always releases focus back to the page."
+      ]
+    },
+    {
+      "sc": "2.1.4", "name": "Character Key Shortcuts", "level": "A",
+      "meaning": "Single-character shortcuts can be turned off or remapped.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "With focus on the page body (not a field), press letter keys — does anything trigger? If the site has single-key shortcuts, they need a disable/remap option. If none, mark N/A."
+      ]
+    },
+    {
+      "sc": "2.2.1", "name": "Timing Adjustable", "level": "A",
+      "meaning": "Any time limit can be turned off, adjusted or extended.",
+      "coverage": { "axe": "partial", "wave": false, "extra": [], "snippet": ["meta-refresh"], "manual": true },
+      "manualSteps": [
+        "Any session timeouts, auto-redirects, auto-dismissing messages? Each needs to be adjustable/extendable, or exempt (real-time events). If no time limits, mark N/A."
+      ]
+    },
+    {
+      "sc": "2.2.2", "name": "Pause, Stop, Hide", "level": "A",
+      "meaning": "Motion and auto-updating content lasting over 5 seconds can be paused. Applies to scroll-driven/GSAP animation.",
+      "coverage": { "axe": null, "wave": false, "extra": ["reduced-motion", "autoplay-media"], "snippet": ["long-animations"], "manual": true },
+      "manualSteps": [
+        "extra-checks reports animations still running >5s and whether prefers-reduced-motion is honoured. Confirm: with OS reduced-motion ON, the site renders fully with no autoplaying motion.",
+        "Carousels, tickers, background video: each needs a visible pause/stop/hide control if it runs >5s."
+      ]
+    },
+    {
+      "sc": "2.3.1", "name": "Three Flashes or Below Threshold", "level": "A",
+      "meaning": "No content flashes more than three times per second.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Watch all video and animation for flashing/strobing. If anything is borderline, run it through the free PEAT tool. Usually a quick Pass on corporate sites."
+      ]
+    },
+    {
+      "sc": "2.4.1", "name": "Bypass Blocks", "level": "A",
+      "meaning": "Skip to main content link as the first keyboard tab stop.",
+      "coverage": { "axe": "partial", "wave": true, "extra": ["skip-link"], "snippet": ["landmarks"], "manual": true },
+      "manualSteps": [
+        "extra-checks presses Tab once on each page and validates the skip link and its target. Manually confirm activating it actually moves reading/focus position past the nav in Chrome, Safari and Firefox."
+      ]
+    },
+    {
+      "sc": "2.4.2", "name": "Page Titled", "level": "A",
+      "meaning": "Unique, descriptive title on every page.",
+      "coverage": { "axe": "good", "wave": true, "extra": ["page-title", "title-duplicates"], "snippet": ["page-title"], "manual": true },
+      "manualSteps": [
+        "extra-checks verifies presence and cross-page uniqueness. Human check: does each title actually DESCRIBE the page (front-loaded, 'Page — Site' pattern)?"
+      ]
+    },
+    {
+      "sc": "2.4.3", "name": "Focus Order", "level": "A",
+      "meaning": "Tab order is logical and matches visual order, including after a modal opens or closes.",
+      "coverage": { "axe": null, "wave": false, "extra": ["tabindex-positive", "focus-visible"], "snippet": ["tabindex-positive"], "manual": true },
+      "manualSteps": [
+        "Tab through each template: order follows the visual layout, no jumps. extra-checks records the actual tab sequence per page — review it.",
+        "Open a modal: focus moves in; close it: focus returns to the trigger."
+      ]
+    },
+    {
+      "sc": "2.4.4", "name": "Link Purpose (In Context)", "level": "A",
+      "meaning": "Link text describes its destination. No bare 'read more' or 'click here'.",
+      "coverage": { "axe": "partial", "wave": true, "extra": [], "snippet": ["vague-links"], "manual": true },
+      "manualSteps": [
+        "The snippet flags vague link text ('read more', 'click here', 'learn more'). For each: fix the text or give the link a fuller accessible name (aria-label/visually hidden text) that includes the visible text.",
+        "Check links to files announce type and size ('Annual report (PDF, 2MB)')."
+      ]
+    },
+    {
+      "sc": "2.4.5", "name": "Multiple Ways", "level": "AA",
+      "meaning": "More than one way to find a page: navigation plus search, sitemap or index.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Count the ways to reach an arbitrary page: main nav, search, sitemap page, related links. Two or more = Pass. Pages that are steps in a process are exempt."
+      ]
+    },
+    {
+      "sc": "2.4.6", "name": "Headings and Labels", "level": "AA",
+      "meaning": "Headings and form labels describe topic or purpose.",
+      "coverage": { "axe": null, "wave": false, "extra": ["headings"], "snippet": ["headings"], "manual": true },
+      "manualSteps": [
+        "Read the heading outline (extra-checks exports it): does each heading describe its section? Are form labels specific ('Work email' vs 'Input')?"
+      ]
+    },
+    {
+      "sc": "2.4.7", "name": "Focus Visible", "level": "AA",
+      "meaning": "Visible focus indicator on every interactive element. Never remove the outline without a replacement.",
+      "coverage": { "axe": null, "wave": false, "extra": ["focus-visible"], "snippet": ["outline-none"], "manual": true },
+      "manualSteps": [
+        "extra-checks tabs through each page and flags stops with no detectable style change on focus. Visually confirm each flag, and check the indicator is clearly visible (not a 1px grey ghost) in both light and dark sections."
+      ]
+    },
+    {
+      "sc": "2.4.11", "name": "Focus Not Obscured (Minimum)", "level": "AA",
+      "meaning": "Focused element is never fully hidden by sticky headers, cookie banners or floating elements. New in WCAG 2.2.",
+      "coverage": { "axe": null, "wave": false, "extra": ["focus-obscured"], "snippet": [], "manual": true },
+      "manualSteps": [
+        "extra-checks flags tab stops whose centre is covered by a fixed/sticky element (advisory — verify each). Manually: Tab through with the cookie banner open and the sticky header active; the focused element must never be COMPLETELY hidden."
+      ]
+    },
+    {
+      "sc": "2.5.1", "name": "Pointer Gestures", "level": "A",
+      "meaning": "Multipoint or path-based gestures have a single-pointer alternative.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Any pinch-zoom maps, swipe-only carousels, drag-to-draw? Each needs single-tap/click alternatives (buttons). If none exist, mark N/A."
+      ]
+    },
+    {
+      "sc": "2.5.2", "name": "Pointer Cancellation", "level": "A",
+      "meaning": "Actions complete on up-event, not down-event.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Press mouse down on a button, drag off it, release: the action must NOT fire. Native buttons/links pass automatically; test custom mousedown/touchstart handlers."
+      ]
+    },
+    {
+      "sc": "2.5.3", "name": "Label in Name", "level": "A",
+      "meaning": "Accessible name contains the visible label text.",
+      "coverage": { "axe": "good", "wave": false, "extra": [], "snippet": ["label-in-name"], "manual": true },
+      "manualSteps": [
+        "axe's label-content-name-mismatch covers most cases. Spot-check controls with aria-label: the visible text must appear inside the accessible name (voice-control users say what they see)."
+      ]
+    },
+    {
+      "sc": "2.5.4", "name": "Motion Actuation", "level": "A",
+      "meaning": "Device motion functionality has a UI alternative and can be disabled.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Does anything respond to shaking/tilting the device? If not (typical for websites), mark N/A."
+      ]
+    },
+    {
+      "sc": "2.5.7", "name": "Dragging Movements", "level": "AA",
+      "meaning": "Any drag action has a single-pointer alternative such as a click or arrow keys. New in WCAG 2.2.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Inventory drag interactions: sliders, sortable lists, drag-scroll carousels, map panning. Each needs a click/tap or keyboard alternative. If no dragging exists, mark N/A."
+      ]
+    },
+    {
+      "sc": "2.5.8", "name": "Target Size (Minimum)", "level": "AA",
+      "meaning": "Interactive targets at least 24x24 CSS px, or adequately spaced. New in WCAG 2.2.",
+      "coverage": { "axe": "partial", "wave": false, "extra": ["target-size"], "snippet": ["target-size"], "manual": true },
+      "manualSteps": [
+        "extra-checks measures every interactive element and flags those under 24x24. Review each flag: inline text links are exempt; a small target is still OK if no other target is within a 24px circle around its centre."
+      ]
+    },
+    {
+      "sc": "3.1.1", "name": "Language of Page", "level": "A",
+      "meaning": "lang attribute set on the html element.",
+      "coverage": { "axe": "good", "wave": true, "extra": ["lang"], "snippet": ["lang"], "manual": false },
+      "manualSteps": []
+    },
+    {
+      "sc": "3.1.2", "name": "Language of Parts", "level": "AA",
+      "meaning": "lang attribute on any passage in a different language.",
+      "coverage": { "axe": "partial", "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Any quotes, names of publications or phrases in another language? Each passage needs its own lang attribute. If the site is single-language throughout, mark Pass."
+      ]
+    },
+    {
+      "sc": "3.2.1", "name": "On Focus", "level": "A",
+      "meaning": "Receiving focus does not trigger a change of context.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Tab through every page: merely FOCUSING a control must never open a modal, submit a form, move focus elsewhere or navigate."
+      ]
+    },
+    {
+      "sc": "3.2.2", "name": "On Input", "level": "A",
+      "meaning": "Changing a setting does not trigger an unexpected change of context.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Change selects, radios and checkboxes with the keyboard: selecting a value must not auto-submit or navigate without an explicit button (or a prior warning)."
+      ]
+    },
+    {
+      "sc": "3.2.3", "name": "Consistent Navigation", "level": "AA",
+      "meaning": "Navigation appears in the same relative order on every page.",
+      "coverage": { "axe": null, "wave": false, "extra": ["consistent-nav"], "snippet": [], "manual": true },
+      "manualSteps": [
+        "extra-checks compares the nav link sequence across all scanned pages and flags outliers. Confirm any flagged page really differs (vs. an intentional section nav)."
+      ]
+    },
+    {
+      "sc": "3.2.4", "name": "Consistent Identification", "level": "AA",
+      "meaning": "Components with the same function are labelled consistently.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Same function, same name everywhere: search field, contact links, download icons, social icons. Flag any component labelled 'Contact' on one page and 'Get in touch' as the same control elsewhere."
+      ]
+    },
+    {
+      "sc": "3.2.6", "name": "Consistent Help", "level": "A",
+      "meaning": "Help mechanisms such as contact details appear in the same relative place on every page. New in WCAG 2.2.",
+      "coverage": { "axe": null, "wave": false, "extra": ["consistent-help"], "snippet": [], "manual": true },
+      "manualSteps": [
+        "extra-checks locates contact/help links per page and flags placement differences. Confirm the help route (contact link, phone, chat) sits in the same relative position across templates."
+      ]
+    },
+    {
+      "sc": "3.3.1", "name": "Error Identification", "level": "A",
+      "meaning": "Form errors identified in text and programmatically associated with the field.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Submit each form empty and with invalid data: errors described in TEXT (not just red borders), tied to the field (aria-describedby / id association), and announced by a screen reader.",
+        "Focus should move to the first error or an error summary."
+      ]
+    },
+    {
+      "sc": "3.3.2", "name": "Labels or Instructions", "level": "A",
+      "meaning": "Every input has a persistent visible label. Placeholder text alone fails.",
+      "coverage": { "axe": "partial", "wave": true, "extra": ["placeholder-label"], "snippet": ["placeholder-label"], "manual": true },
+      "manualSteps": [
+        "extra-checks flags fields whose only 'label' is a placeholder. axe only checks that SOME accessible name exists — a visible persistent label is still required. Confirm every field keeps its label while typing.",
+        "Required fields and format requirements stated up front."
+      ]
+    },
+    {
+      "sc": "3.3.3", "name": "Error Suggestion", "level": "AA",
+      "meaning": "Error messages suggest how to correct the input.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Trigger each validation error: does the message say HOW to fix it ('Enter your email in the format name@example.com'), not just 'Invalid input'?"
+      ]
+    },
+    {
+      "sc": "3.3.4", "name": "Error Prevention (Legal, Financial, Data)", "level": "AA",
+      "meaning": "Submissions are reversible, checked or confirmed.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "Only applies to legal commitments, purchases or data deletion. If the site only has contact forms, mark N/A."
+      ]
+    },
+    {
+      "sc": "3.3.7", "name": "Redundant Entry", "level": "A",
+      "meaning": "Information already entered is auto-populated or available to select. New in WCAG 2.2.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "In any multi-step process: is previously entered info re-requested? It must be auto-filled or selectable. Single-step forms: N/A."
+      ]
+    },
+    {
+      "sc": "3.3.8", "name": "Accessible Authentication (Minimum)", "level": "AA",
+      "meaning": "No cognitive function test in authentication without an alternative. New in WCAG 2.2.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": [], "manual": true },
+      "manualSteps": [
+        "If there is a login: password managers must work (no paste-blocking), and any CAPTCHA needs an alternative that isn't memorising/transcribing/solving puzzles. No login: N/A."
+      ]
+    },
+    {
+      "sc": "4.1.2", "name": "Name, Role, Value", "level": "A",
+      "meaning": "Correct name, role and value on all interactive components, including custom ones.",
+      "coverage": { "axe": "good", "wave": true, "extra": [], "snippet": ["aria-state"], "manual": true },
+      "manualSteps": [
+        "axe catches missing names and invalid ARIA. Manually verify DYNAMIC state: nav toggle announces expanded/collapsed (aria-expanded flips), tabs announce selected, accordions announce state — check the accessibility tree, then listen with NVDA and VoiceOver.",
+        "Prefer native elements; strip redundant/wrong ARIA."
+      ]
+    },
+    {
+      "sc": "4.1.3", "name": "Status Messages", "level": "AA",
+      "meaning": "Dynamic status messages announced via role=status or aria-live.",
+      "coverage": { "axe": null, "wave": false, "extra": [], "snippet": ["live-regions"], "manual": true },
+      "manualSteps": [
+        "The snippet inventories existing live regions. With a screen reader running, trigger form success/error, filter results and loading states: each must be announced WITHOUT moving focus (role=status / aria-live=polite)."
+      ]
+    }
+  ]
+}

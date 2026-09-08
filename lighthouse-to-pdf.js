@@ -1,4 +1,4 @@
-const { chromium } = require('playwright');
+const { launchPdfRenderer } = require('./browsers');
 const fs = require('fs');
 const path = require('path');
 
@@ -6,7 +6,7 @@ const path = require('path');
   const rawDir = './audits/raw';
   const files = fs.readdirSync(rawDir).filter(f => f.endsWith('-lighthouse.report.html'));
 
-  const browser = await chromium.launch();
+  const browser = await launchPdfRenderer();
   for (const file of files) {
     const page = await browser.newPage();
     const filePath = path.resolve(rawDir, file);

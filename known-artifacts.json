@@ -1,0 +1,19 @@
+{
+  "_comment": [
+    "Per-project list of axe findings verified by hand to be measurement artifacts,",
+    "not real failures. Used by filter-known-artifacts.js. Ships empty on purpose.",
+    "",
+    "Each entry: rule (the axe rule id), targets (substrings matched against the",
+    "node's selector), fgColor (optional — only match when axe reported this exact",
+    "foreground colour), reason (the evidence, which goes into the audit trail).",
+    "",
+    "Example of a justified entry — delete it and write your own:",
+    "  {",
+    "    \"rule\": \"color-contrast\",",
+    "    \"targets\": [\".site-clock\"],",
+    "    \"fgColor\": \"#000000\",",
+    "    \"reason\": \"axe reports fg #000000 while getComputedStyle returns rgb(255,255,255) in the same Playwright run. Real ratio 17.26:1, checked by hand in Chrome and Safari on 2026-08-26.\"",
+    "  }"
+  ],
+  "artifacts": []
+}

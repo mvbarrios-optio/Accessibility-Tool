@@ -1,4 +1,4 @@
-const { chromium } = require('playwright');
+const { launchPdfRenderer } = require('./browsers');
 const fs = require('fs');
 const path = require('path');
 
@@ -36,7 +36,7 @@ function buildHtml(url, results) {
   const rawDir = './audits/raw';
   const files = fs.readdirSync(rawDir).filter(f => f.endsWith('-wave.json'));
 
-  const browser = await chromium.launch();
+  const browser = await launchPdfRenderer();
   for (const file of files) {
     const results = JSON.parse(fs.readFileSync(path.join(rawDir, file)));
     const html = buildHtml(results.url, results);
