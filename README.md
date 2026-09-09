@@ -95,6 +95,7 @@ a11y-audit-toolkit/
   setup.js                   `npm run setup` — installs dependencies + the three browsers
   find-pages.js              `npm run urls:find` — builds urls.json from a sitemap, or by
                              following the site's links when there is no sitemap
+  wave-prompt.js             `npm run wave:prompt` — prints the paste-ready WAVE prompt
   ask.js                     Shared terminal prompts (safe in CI: never blocks on input)
   run-scans.js               `npm start` — runs axe + Lighthouse + extra checks in one go
   urls.json                  Pages to scan (ships empty)
@@ -353,8 +354,16 @@ with no engine suffix) are still read and treated as Chromium, so existing `audi
 contents don't need renaming.
 
 Otherwise every file is named `<page>-<tool>.<ext>`, where `<page>` is the URL with the
-protocol and domain stripped, slashes turned into underscores, and the site root named
-`homepage`. Example: `https://www.example.com/about` → `about`.
+**protocol** stripped, any trailing slash removed, and slashes turned into underscores —
+the domain stays in. Example: `https://www.example.com/about` → `www.example.com_about`.
+A URL that reduces to nothing becomes `home`.
+
+`browsers.js`'s `pageName()` and the `sed -E` expression in `lighthouse-scan.sh` implement
+the same transform, and they have to stay identical: `merge-pdfs.js` matches a page's axe,
+Lighthouse and WAVE files by this name, so any divergence makes it skip pages silently.
+
+The domain is dropped later, by hand, in the rename step for the evidence pack (see
+`PLAYBOOK.md` step 6) — that is where `homepage` comes from, not from the scripts.
 
 Final merged reports (after the rename step) follow:
 `<page>_<before|after>_<YYYY-MM-DD>.pdf` — e.g. `about_before_2026-07-27.pdf`. The date is
@@ -407,8 +416,29 @@ engine, which is the quicker way to spot an issue that only reproduces in Firefo
 ## WAVE scan
 
 WAVE's free web tool (`wave.webaim.org`) is a JavaScript single-page app with no official
-free API, so there's no reusable `wave-scan.js`. Producing `audits/raw/<page>-wave.json`
-for a set of URLs means, for each URL:
+free API, so there's no reusable `wave-scan.js`. The closest thing to automation is:
+
+```bash
+npm run wave:prompt
+```
+
+which prints a ready-to-paste prompt containing the method below plus the exact output
+filename for every URL in `urls.json` — the filenames are the usual failure point. Paste it
+into a Claude session with browser access. `npm start` also offers to print it when the
+scans finish.
+
+Two things to weigh first. WebAIM sells a **WAVE API** (100 free credits, then from
+$0.025/page) and that is what programmatic access is for; with a key the whole pass is a
+`GET` returning JSON, no browser and no prompt. And driving the free interface depends on
+their internal `window.wave.report` object, so it breaks whenever they change it.
+
+WAVE is also **optional**: it is the sole automated source for none of the 55 criteria, and
+`generate-report.js` does not read it at all. It feeds `combine-report.js`'s CSVs and the
+merged PDF pack, and adds a second independent rule engine next to axe — which is its real
+argument, since Lighthouse's accessibility category is axe-core too (`lighthouse` depends
+on `axe-core`), so without WAVE the toolkit runs one third-party engine, not two.
+
+Doing it by hand, for each URL:
 
 1. Navigate to `https://wave.webaim.org/report#/<full URL>` (this deep-link format works
    directly — no need to type into the form each time).
@@ -467,7 +497,7 @@ COVERAGE.md            The per-criterion map of which tool verifies what.
 ```
 
 npm scripts: `setup`, `urls:find`, `start`, `scan:extra`, `scan:extra:fast`,
-`scan:filter`, `audit:manual`, `audit:manual:list`, `report:findings`.
+`scan:filter`, `wave:prompt`, `audit:manual`, `audit:manual:list`, `report:findings`.
 
 `extra-checks.js` is Chromium-only by design (layout probes + tab-order simulation);
 engine-specific accessibility-tree differences are already covered by the multi-engine axe

@@ -83,9 +83,20 @@ a real terminal with a browser binary rather than a sandboxed environment.
 ## 3. Run the WAVE pass **(you, browser, or Claude)**
 
 Scan the same list of URLs from `urls.json` through WAVE and produce
-`audits/raw/<page>-wave.json` for each — see the README's "WAVE scan" section for the
-exact method (there's no standalone script, since WAVE's free tool has no API). This is a
-good step to hand to Claude in a session with a browser extension connected.
+`audits/raw/<page>-wave.json` for each. There's no standalone script — WAVE's free tool has
+no API — so run:
+
+```
+npm run wave:prompt
+```
+
+and paste what it prints into a Claude session with browser access. It contains the method
+and the exact output filename for every URL in `urls.json`. `npm start` offers the same
+thing when the scans finish.
+
+If this pass has to be repeated regularly, WebAIM's paid API (100 free credits, then from
+$0.025/page) turns it into a plain request returning JSON and removes the dependency on
+their web interface, which can change at any time.
 
 If a page's template is shared with other pages (e.g. blog posts), don't shortcut this to
 "scan one, reuse for all" — real content differences (image counts, headings, contrast)

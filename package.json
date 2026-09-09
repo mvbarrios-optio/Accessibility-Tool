@@ -16,6 +16,7 @@
     "scan:extra": "node extra-checks.js",
     "scan:extra:fast": "node extra-checks.js --fast",
     "scan:filter": "node filter-known-artifacts.js",
+    "wave:prompt": "node wave-prompt.js",
     "audit:manual": "node manual-audit.js",
     "audit:manual:list": "node manual-audit.js --list",
     "report:findings": "node generate-report.js",

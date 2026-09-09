@@ -170,9 +170,24 @@ npm start -- --skip=lighthouse       # skip a step: axe | lighthouse | extra
 Any step can also be run on its own: `npm run scan:axe`, `npm run scan:lighthouse`,
 `npm run scan:extra`.
 
-**WAVE has no script**: it's done from the browser (see the README's "WAVE scan" section),
-or you can ask Claude to do it in a session with a browser extension connected. If your
-process needs the PDF evidence pack, those steps (`pdf:axe`, `merge`, …) are in
+**WAVE has no script**, because its free tool has no API. When the scans finish, `npm start`
+offers to print a ready-to-paste prompt for it (Enter skips — it's optional):
+
+```bash
+npm run wave:prompt        # print it any time
+```
+
+Paste that into a Claude session with browser access. The prompt already contains the
+method and, more importantly, the exact output filename for each of your URLs — getting a
+filename wrong is how this step usually fails silently.
+
+Two honest caveats. WAVE is **optional**: it's the sole automated source for none of the 55
+criteria, and the findings report doesn't read it — it feeds the CSV summaries and the PDF
+evidence pack, and gives you a second rule engine next to axe. And WebAIM sells a proper
+**WAVE API** (100 free credits, then from $0.025/page); with a key it's a plain request
+returning JSON, no browser and no prompt, and it doesn't break when they change their site.
+
+If your process needs the PDF evidence pack, those steps (`pdf:axe`, `merge`, …) are in
 `PLAYBOOK.md` and are independent of this guide.
 
 ---

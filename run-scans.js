@@ -12,6 +12,7 @@
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const { interactive, ask, askYesNo, close, release } = require('./ask');
+const { printPrompt } = require('./wave-prompt');
 
 const args = process.argv.slice(2);
 const has = name => args.some(a => a === `--${name}` || a.startsWith(`--${name}=`));
@@ -216,9 +217,17 @@ async function main() {
     console.log('  1. npm run audit:manual                 the keyboard / screen-reader /');
     console.log('                                          judgement questions (saves as you go)');
     console.log('  2. npm run report:findings -- --label "Baseline"');
-    console.log('                                          builds audits/reports/findings-report.md\n');
+    console.log('                                          builds audits/reports/findings-report.md');
+    console.log('\nOptional: npm run wave:prompt            prints the prompt for the WAVE pass\n');
     return;
   }
+
+  // WAVE has no script (its free tool has no API), so the most the toolkit can do
+  // is hand over the instructions rather than leave the step undiscoverable.
+  const wantWave = await askYesNo(
+    '\nOptional: also run the WAVE pass? It needs a Claude session with browser'
+    + '\naccess, and this will print the prompt to paste. Show it?', false);
+  if (wantWave) printPrompt(urls, process.cwd());
 
   const doManual = await askYesNo(
     '\nThe manual questions are what make the audit complete. Start them now?', true);
@@ -232,7 +241,8 @@ async function main() {
 
   console.log('\nWhen you are ready, the rest of the audit is:');
   console.log('  npm run audit:manual                    the questions (resumable)');
-  console.log('  npm run report:findings -- --label "Baseline"   the report\n');
+  console.log('  npm run report:findings -- --label "Baseline"   the report');
+  console.log('  npm run wave:prompt                     optional: the WAVE pass prompt\n');
   close();
 }
 
