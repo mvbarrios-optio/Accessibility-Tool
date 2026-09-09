@@ -59,11 +59,18 @@ async function settleAnimations(page) {
 // how axe ends up reporting dark text over a dark background -- a state that
 // lasts milliseconds and that no visitor sees at rest.
 //
-// Rather than hardcode one site's attribute, snapshot the attributes on <html>
-// and <body> and wait until they stop changing. Override the reported set with
-// THEME_ATTRS=data-theme,data-mode if a site keeps its theme state elsewhere.
+// Rather than hardcode one site's attribute, snapshot every attribute on <html>
+// and <body> and wait until the whole snapshot stops changing.
+//
+// The list below is only what gets REPORTED in the summary, for diagnosis; the
+// fingerprint covers every attribute regardless. `class` is deliberately not in
+// it: on a framework-built site it is hundreds of characters of webfont classes
+// in a different order per page — 65% of axe-summary.json on the first real run
+// — and says nothing about the theme. Class changes still count towards
+// settling. Override with THEME_ATTRS=data-theme,data-mode if a site keeps its
+// theme state somewhere else.
 const THEME_ATTRS = (process.env.THEME_ATTRS ||
-  'data-theme,data-color-scheme,data-mode,color-scheme,element-theme,theme,class')
+  'data-theme,data-color-scheme,data-mode,color-scheme,element-theme,theme')
   .split(',').map(s => s.trim()).filter(Boolean);
 
 function readChromeState(page, attrs) {
