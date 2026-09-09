@@ -171,10 +171,12 @@ Any step can also be run on its own: `npm run scan:axe`, `npm run scan:lighthous
 `npm run scan:extra`.
 
 **WAVE has no script**, because its free tool has no API. When the scans finish, `npm start`
-offers to print a ready-to-paste prompt for it (Enter skips — it's optional):
+prints a ready-to-paste prompt for it — you don't have to ask for it or remember a command.
+It also lands in `audits/reports/wave-prompt.txt`, so you can copy it later even if the
+manual questions have scrolled it away:
 
 ```bash
-npm run wave:prompt        # print it any time
+npm run wave:prompt        # print it again any time
 ```
 
 Paste that into a Claude session with browser access. The prompt already contains the

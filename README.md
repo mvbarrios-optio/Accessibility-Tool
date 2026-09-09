@@ -424,8 +424,10 @@ npm run wave:prompt
 
 which prints a ready-to-paste prompt containing the method below plus the exact output
 filename for every URL in `urls.json` — the filenames are the usual failure point. Paste it
-into a Claude session with browser access. `npm start` also offers to print it when the
-scans finish.
+into a Claude session with browser access. `npm start` prints it automatically when the
+scans finish — no flag and no question, since putting one in front of it is what made this
+step easy to miss. Both also write it to `audits/reports/wave-prompt.txt`, so starting the
+manual questions straight afterwards doesn't scroll it out of reach.
 
 Two things to weigh first. WebAIM sells a **WAVE API** (100 free credits, then from
 $0.025/page) and that is what programmatic access is for; with a key the whole pass is a

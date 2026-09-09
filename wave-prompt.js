@@ -29,9 +29,10 @@ function buildPrompt(urls, cwd) {
   const listing = urls.length <= MAX_INLINE
     ? urls.map(u => `  ${u}\n    -> audits/raw/${pageName(u)}-wave.json`).join('\n')
     : `  The ${urls.length} URLs are in ${cwd}/urls.json — read that file for the list.\n`
-      + `  For each URL, the output filename is the URL with the protocol and domain\n`
-      + `  stripped and slashes turned into underscores, with the site root named\n`
-      + `  "homepage": audits/raw/<page>-wave.json. First few for reference:\n`
+      + `  For each URL the output filename is audits/raw/<page>-wave.json, where <page>\n`
+      + `  is the URL with the protocol removed, any trailing slash removed, and the\n`
+      + `  remaining slashes turned into underscores. The domain stays in. A URL that\n`
+      + `  reduces to nothing becomes "home". Worked examples from this list:\n`
       + urls.slice(0, 5).map(u => `    ${u}\n      -> audits/raw/${pageName(u)}-wave.json`).join('\n');
 
   return `I need a WAVE accessibility scan of the pages listed at the end, saving one JSON
@@ -84,20 +85,40 @@ Save the files under ${cwd}/audits/raw/. Pages and their output filenames:
 ${listing}`;
 }
 
+const OUT_DIR = './audits/reports';
+const OUT_FILE = `${OUT_DIR}/wave-prompt.txt`;
+
+// Written as well as printed: anything run after this (the manual questions, for
+// one) scrolls it off screen, and the whole point is to copy it.
+function savePrompt(urls, cwd) {
+  try {
+    fs.mkdirSync(OUT_DIR, { recursive: true });
+    fs.writeFileSync(OUT_FILE, buildPrompt(urls, cwd) + '\n');
+    return OUT_FILE;
+  } catch (err) {
+    return null;
+  }
+}
+
 function printPrompt(urls, cwd) {
   const bar = '─'.repeat(72);
+  const saved = savePrompt(urls, cwd);
+
   console.log(`\n${bar}`);
-  console.log('WAVE pass — optional. Copy everything between the lines below into a');
-  console.log('Claude session that has browser access.');
+  console.log('WAVE pass — optional. Copy everything between the lines below and paste');
+  console.log('it into a Claude session that has browser access.');
   console.log(bar);
   console.log(`\n${buildPrompt(urls, cwd)}\n`);
   console.log(bar);
-  console.log(`Then: node wave-to-pdf.js   (WAVE JSON -> PDF, for the evidence pack)`);
-  console.log(`      node combine-report.js (folds the AIM scores into the CSV summaries)`);
+  if (saved) console.log(`Also saved to ${saved} — no need to scroll back for it.`);
+  console.log(`Afterwards: node wave-to-pdf.js    (WAVE JSON -> PDF, for the evidence pack)`);
+  console.log(`            node combine-report.js (folds the AIM scores into the CSVs)`);
+  console.log(`Skipping WAVE is fine: it is the sole automated source for none of the`);
+  console.log(`55 criteria, and the findings report does not read it.`);
   console.log(bar);
 }
 
-module.exports = { buildPrompt, printPrompt };
+module.exports = { buildPrompt, printPrompt, savePrompt };
 
 if (require.main === module) {
   let urls;

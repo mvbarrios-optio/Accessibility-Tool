@@ -91,8 +91,9 @@ npm run wave:prompt
 ```
 
 and paste what it prints into a Claude session with browser access. It contains the method
-and the exact output filename for every URL in `urls.json`. `npm start` offers the same
-thing when the scans finish.
+and the exact output filename for every URL in `urls.json`. `npm start` prints the same
+thing when the scans finish, and both save it to `audits/reports/wave-prompt.txt` so it
+survives whatever scrolls past.
 
 If this pass has to be repeated regularly, WebAIM's paid API (100 free credits, then from
 $0.025/page) turns it into a plain request returning JSON and removes the dependency on

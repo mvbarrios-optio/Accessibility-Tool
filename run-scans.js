@@ -223,11 +223,10 @@ async function main() {
   }
 
   // WAVE has no script (its free tool has no API), so the most the toolkit can do
-  // is hand over the instructions rather than leave the step undiscoverable.
-  const wantWave = await askYesNo(
-    '\nOptional: also run the WAVE pass? It needs a Claude session with browser'
-    + '\naccess, and this will print the prompt to paste. Show it?', false);
-  if (wantWave) printPrompt(urls, process.cwd());
+  // is hand over the instructions. Printed rather than offered: putting a
+  // question in front of it is what made the step easy to miss in the first
+  // place, and printPrompt also writes it to a file so scroll cannot lose it.
+  printPrompt(urls, process.cwd());
 
   const doManual = await askYesNo(
     '\nThe manual questions are what make the audit complete. Start them now?', true);
