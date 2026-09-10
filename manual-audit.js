@@ -11,6 +11,11 @@
 //   node manual-audit.js --list          # progress overview, no questions
 //
 // Answers are saved after every question — quit any time with q and resume later.
+//
+// Answering "?" marks a criterion as needing someone with accessibility
+// expertise. That is a real answer, not a skip: the report lists it as an open
+// coverage gap with your note, so "nobody here could judge this" stays visible
+// instead of being guessed at as a pass.
 
 const fs = require('fs');
 const path = require('path');
@@ -94,15 +99,29 @@ const queue = manualCriteria.filter(c => {
 
 (async () => {
   const p = progress();
-  console.log(`\nWCAG 2.2 AA manual audit — ${queue.length} criteria to review (${p.answered}/${p.total} already answered)`);
-  console.log(`Answers: p = pass · f = fail · n = not applicable · s = skip for now · q = save & quit\n`);
+  console.log(`\n${'═'.repeat(72)}`);
+  console.log(`WCAG 2.2 AA manual audit — ${queue.length} question(s) to go (${p.answered}/${p.total} answered)`);
+  console.log(`${'═'.repeat(72)}`);
+  console.log(`This is the part automated tools cannot do. Expect roughly`);
+  console.log(`${Math.max(1, Math.round(queue.length * 0.5))}–${Math.max(2, Math.round(queue.length * 1.5))} minutes if you know the site, longer where you have to go and test.`);
+  console.log(`\nYou will need: a keyboard, browser zoom, and a screen reader for some`);
+  console.log(`questions (NVDA on Windows/Chrome, or VoiceOver on Mac/Safari).`);
+  console.log(`\nEvery answer is saved immediately. Press q whenever you want to stop —`);
+  console.log(`next time it picks up exactly where you left off.`);
+  console.log(`\nAnswers:`);
+  console.log(`  p  pass — you checked it and it is fine`);
+  console.log(`  f  fail — there is a problem (it then asks you where and how bad)`);
+  console.log(`  n  not applicable — the site has nothing this applies to`);
+  console.log(`  ?  I cannot judge this — flags it for someone with a11y expertise`);
+  console.log(`  s  skip for now — ask me again next time`);
+  console.log(`  q  save and quit\n`);
 
   if (!store.testedBy) {
     store.testedBy = await ask('Your name (recorded as "Tested By"): ') || 'unknown';
     save();
   }
 
-  for (const c of queue) {
+  for (const [index, c] of queue.entries()) {
     const prev = store.entries[c.sc];
     const auto = [];
     if (c.coverage.axe) auto.push(`axe (${c.coverage.axe})`);
@@ -111,28 +130,29 @@ const queue = manualCriteria.filter(c => {
     if (c.coverage.snippet && c.coverage.snippet.length) auto.push(`snippet: ${c.coverage.snippet.join(', ')}`);
 
     console.log('\n' + '─'.repeat(72));
-    console.log(`${c.sc}  ${c.name}  (Level ${c.level})`);
+    console.log(`[${index + 1}/${queue.length}]  ${c.sc}  ${c.name}  (Level ${c.level})`);
     console.log(`   ${c.meaning}`);
     if (auto.length) console.log(`   Automated coverage: ${auto.join(' · ')} — review those results too.`);
-    else console.log(`   Automated coverage: NONE — this one is entirely on you.`);
+    else console.log(`   Automated coverage: none — no tool can check this one, only a person.`);
     console.log('   How to test:');
     for (const step of c.manualSteps) console.log(`     • ${step}`);
     if (prev) console.log(`   (previously: ${prev.result.toUpperCase()}${prev.issue ? ' — ' + prev.issue : ''})`);
 
     let answer;
     while (true) {
-      answer = (await ask(`   Result [p/f/n/s/q]${prev ? ` (Enter = keep ${prev.result})` : ''}: `)).toLowerCase();
+      answer = (await ask(`   [p]ass  [f]ail  [n]/a  [?]can't judge  [s]kip  [q]uit${prev ? `  (Enter = keep ${prev.result})` : ''}: `)).toLowerCase();
       if (answer === '' && prev) { answer = null; break; }
-      if (['p', 'f', 'n', 's', 'q'].includes(answer)) break;
+      if (['p', 'f', 'n', '?', 's', 'q'].includes(answer)) break;
       if (stdinClosed) { answer = 'q'; break; }
-      console.log('   Please answer p, f, n, s or q.');
+      console.log('   Please answer p, f, n, ?, s or q.');
     }
     if (answer === null) continue;            // keep previous
     if (answer === 'q') break;
     if (answer === 's') continue;
 
+    const RESULTS = { p: 'pass', f: 'fail', n: 'na', '?': 'unsure' };
     const entry = {
-      result: answer === 'p' ? 'pass' : answer === 'f' ? 'fail' : 'na',
+      result: RESULTS[answer],
       testedBy: store.testedBy,
       date: new Date().toISOString().slice(0, 10)
     };
@@ -143,6 +163,10 @@ const queue = manualCriteria.filter(c => {
       const sev = (await ask('   Severity [h]igh / [m]edium / [l]ow: ')).toLowerCase();
       entry.severity = sev.startsWith('h') ? 'high' : sev.startsWith('l') ? 'low' : 'medium';
       entry.evidence = await ask('   Evidence file, if any (screenshot per naming convention, Enter to skip): ');
+    } else if (answer === '?') {
+      console.log(`   Recorded as needing an expert — it stays an open gap in the report.`);
+      const note = await ask('   What stopped you deciding? (optional, helps whoever picks it up): ');
+      if (note) entry.note = note;
     } else {
       const note = await ask('   Note (optional, Enter to skip): ');
       if (note) entry.note = note;
@@ -153,9 +177,19 @@ const queue = manualCriteria.filter(c => {
 
   if (!stdinClosed) rl.close();
   const done = progress();
+  const unsure = manualCriteria.filter(c => (store.entries[c.sc] || {}).result === 'unsure');
   console.log('\n' + '═'.repeat(72));
   console.log(`Saved to ${OUT_FILE}`);
   console.log(`Progress: ${done.answered}/${done.total} answered · ${done.fails} failing`);
-  if (done.answered < done.total) console.log(`Run "node manual-audit.js" again to continue where you left off.`);
-  console.log(`Next: node generate-report.js  (builds the findings report for the fix guide)`);
+  if (unsure.length) {
+    console.log(`\n${unsure.length} criteri${unsure.length === 1 ? 'on' : 'a'} marked as needing an expert:`);
+    for (const c of unsure) console.log(`  ? ${c.sc}  ${c.name}`);
+    console.log(`These stay open gaps in the report until someone qualified answers them.`);
+  }
+  if (done.answered < done.total) {
+    console.log(`\n${done.total - done.answered} still unanswered. Run this again to carry on:`);
+    console.log(`  npm run audit:manual`);
+  }
+  console.log(`\nNext — build the report:`);
+  console.log(`  npm run report:findings -- --label "Baseline"`);
 })();

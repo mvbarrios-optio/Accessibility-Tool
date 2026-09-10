@@ -4,8 +4,9 @@ Scripts for running a full WCAG 2.2 A/AA audit against any website: an automated
 (axe, Lighthouse, WAVE), the automated checks those tools miss, a guided manual pass for
 everything that needs human judgement, and one merged findings report at the end.
 
-It is site-agnostic. Point `urls.json` at the pages in scope and nothing else needs
-editing — no script contains a hardcoded domain, selector, or client name.
+It is site-agnostic, and it asks for what it needs: `npm start` asks which site to check,
+finds its pages from the sitemap, and scans them. No script contains a hardcoded domain,
+selector, or client name.
 
 The axe pass runs in **all three Playwright engines** by default — Chromium, Firefox and
 WebKit (Safari's engine) — so engine-specific accessibility differences (computed
@@ -14,7 +15,8 @@ being hidden behind a single browser. See "Browser engines" below.
 
 ## Quick start — from zero to a findings report
 
-Four commands, in order. You need Node.js ≥ 18 and npm installed; nothing else.
+Four commands, in order. You need Node.js ≥ 18 and npm installed; nothing else. The
+toolkit asks for anything it needs, so none of these require flags or editing a file.
 
 **1. Set up, once per machine:**
 
@@ -25,27 +27,32 @@ npm run setup
 Installs the dependencies and the three scan browsers (~1GB, a few minutes), then tells
 you what to do next. Re-running it is safe.
 
-**2. Tell it what to scan.** Open `urls.json` and list every page in scope. It ships
-empty — nothing runs until you fill it. Copy the shape from `urls.example.json`:
-
-```json
-[
-  "https://www.example.com",
-  "https://www.example.com/about",
-  "https://www.example.com/contact"
-]
-```
-
-**3. Run every automated scan with one command:**
+**2. Run it:**
 
 ```bash
 npm start
 ```
 
-That runs all three automated passes in order — axe-core in Chromium, Firefox and WebKit,
-then Lighthouse, then the extra checks axe misses (reflow, zoom, focus, target size…) —
-prints progress as it goes, and ends with a summary of what produced evidence and what
-didn't. The `audits/` folders are created for you. Useful variations:
+The first time, there is no page list yet, so it asks — no flags, no files to edit:
+
+```
+No pages to check yet — let's find them.
+
+Which site do you want to check? (e.g. www.example.com)
+> www.example.com
+```
+
+From that one answer it finds the site's sitemap, shows you the pages it found, asks
+whether to save the list, and then runs every automated scan. If anything about the list
+needs a decision — most often a staging site whose sitemap lists the live addresses — it
+asks that too, in plain words. Nothing is written until you say yes.
+
+The scans themselves are all three automated passes in order — axe-core in Chromium,
+Firefox and WebKit, then Lighthouse, then the extra checks axe misses (reflow, zoom, focus,
+target size…). It prints progress as it goes and ends with a summary of what produced
+evidence and what didn't. The `audits/` folders are created for you.
+
+On later runs it reuses the saved list and goes straight to scanning. Useful variations:
 
 ```bash
 npm start -- --fast                  # skip the ~10s/page animation waits
@@ -59,14 +66,14 @@ Each pass can still be run on its own — see "Running each tool" below.
 menu, form errors), paste `console-snippet.js` into DevTools on that page and save the
 JSON it copies into `audits/raw/` — the file header has the exact steps.
 
-**4. Answer the human-judgement checks** (keyboard, screen reader, judgement calls —
-resumable, saves after every answer):
+**3. Answer the human-judgement checks** (keyboard, screen reader, judgement calls — it
+asks one question at a time, and saves after every answer so you can stop and resume):
 
 ```bash
 npm run audit:manual
 ```
 
-**5. Build the findings report:**
+**4. Build the findings report:**
 
 ```bash
 npm run report:findings -- --label "Baseline"
@@ -86,6 +93,10 @@ not required just to find and fix issues.
 ```
 a11y-audit-toolkit/
   setup.js                   `npm run setup` — installs dependencies + the three browsers
+  find-pages.js              `npm run urls:find` — builds urls.json from a sitemap, or by
+                             following the site's links when there is no sitemap
+  wave-prompt.js             `npm run wave:prompt` — prints the paste-ready WAVE prompt
+  ask.js                     Shared terminal prompts (safe in CI: never blocks on input)
   run-scans.js               `npm start` — runs axe + Lighthouse + extra checks in one go
   urls.json                  Pages to scan (ships empty)
   urls.example.json          The shape urls.json expects
@@ -109,6 +120,150 @@ a11y-audit-toolkit/
     reports/                 Merged PDFs and the findings report
     manual/                  Manual-audit answers (resumable)
 ```
+
+## Building the page list
+
+`urls.json` is the only file that has to be filled in, and you should never have to do it
+by hand: `npm start` asks for the site and builds the list for you the first time. This
+section is for running that step on its own, or controlling exactly what goes in.
+
+`find-pages.js` fills the list from the site's sitemap so a large site doesn't have to
+be typed out:
+
+```bash
+npm run urls:find -- https://www.example.com                  # auto-find the sitemap
+npm run urls:find -- https://www.example.com/sitemap.xml      # or name it directly
+npm run urls:find -- ./sitemap.xml                            # or a local file
+```
+
+Run in a terminal it shows the list and asks whether to save it. Add `--write` to skip
+that question (needed when scripting, where it never asks anything). An existing
+`urls.json` is copied to `urls.json.bak` first, so a hand-curated list is never lost.
+
+What it handles: sitemap discovery via `robots.txt` and the conventional paths, sitemap
+*index* files (nested sitemaps, including ones hosted on another domain), gzipped
+sitemaps, XML entities and CDATA, de-duplication of `/page` against `/page/`, and
+stripping query strings. No extra dependencies — it uses Node's own `fetch` and `zlib`.
+
+Options:
+
+```
+--write               save without asking (required outside a terminal)
+--append              merge with the current urls.json instead of replacing it
+--include=<regex>     keep only URLs matching this pattern
+--exclude=<regex>     drop URLs matching this pattern
+--limit=<n>           keep at most n URLs
+--sample[=n]          keep n URLs per page template (default 1)
+--keep-query          keep query strings (stripped by default)
+--host=<hostname>     rewrite every URL onto this host (staging sitemaps)
+--crawl               find pages by following links instead of reading a sitemap
+--max-pages=<n>       cap on pages visited while crawling (default 150)
+--max-sitemaps=<n>    cap on nested sitemap fetches (default 50)
+```
+
+Real sitemaps are often far larger than an audit scope — a site with 124,000 URLs is not
+unusual — so two options exist to cut them down:
+
+```bash
+# Drop the sections that aren't in scope
+npm run urls:find -- https://www.example.com --exclude='/tag/|/author/|/page/[0-9]'
+
+# One page per template, capped at 25, keeping the biggest templates
+npm run urls:find -- https://www.example.com --sample --limit=25
+```
+
+`--sample` groups URLs by page template (`/blog/*`, `/products/*`, …) and keeps one from
+each, ordered homepage-first then largest template first, so a small `--limit` lands on
+the pages representing the most of the site. It prints exactly which templates were
+sampled and how many pages each one left out.
+
+**`--sample` narrows the audit scope, and that's a decision you're making, not a shortcut
+the tool is taking for you.** Accessibility failures are usually template-level, which
+makes it a sound way to scope a *first* pass. But pages left out are not audited, and
+real content differences between pages on the same template — image counts, heading
+structure, contrast over different images — genuinely differ. Don't use a sampled run to
+claim a site is covered.
+
+### When there is no sitemap
+
+Not every site has one — a Webflow site without the SEO sitemap setting turned on returns
+404 for `/sitemap.xml`. Rather than stopping, it offers to find the pages by following the
+site's own links, and `--crawl` goes straight there:
+
+```bash
+npm run urls:find -- https://www.example.com --crawl
+```
+
+The crawl walks the site breadth-first from the starting page, stays on the same origin,
+skips assets, strips fragments, and stops at `--max-pages` (default 150) — saying so when
+it hits the cap, so a truncated list can't look complete. Concurrency is capped at 4.
+
+Two limits worth knowing:
+
+- **It only finds linked pages.** Anything unlinked, or behind a login, has to be added to
+  `urls.json` by hand. It says this every run rather than letting the list look exhaustive.
+- **It does not consult `robots.txt`.** Every Webflow staging domain serves
+  `Disallow: /`, so honouring it would make the crawl useless for exactly the case it
+  exists for — auditing your own unpublished site. Use it on sites you are responsible for.
+
+### Staging sites, and Webflow in particular
+
+A staging site's sitemap usually lists the **production** URLs, which makes it easy to
+audit the wrong site without noticing. Webflow is the common case and worth knowing
+exactly:
+
+- `https://<site>.webflow.io/sitemap.xml` **is** served on the staging domain (Webflow
+  serves it with an `application/rss+xml` content type, which is harmless — the body is a
+  normal `<urlset>`).
+- But every `<loc>` inside points at the site's configured live domain, not at
+  `<site>.webflow.io`.
+- Its `robots.txt` is `Disallow: /` with no `Sitemap:` line, so the sitemap is found by
+  path rather than by declaration. That works, and auditing your own staging site is the
+  intended use.
+
+So a bare run against a staging domain would hand you production URLs. Rather than doing
+that quietly, it stops and asks which site you actually meant:
+
+```
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+These pages are on a different address than the one you gave.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  You asked about:     your-site.webflow.io
+  The sitemap lists:   www.your-live-domain.com
+
+  This is normal for a staging site: its sitemap lists the LIVE addresses.
+  Which site do you want to check?
+
+  1) your-site.webflow.io
+     the address you gave (usually the staging or test site)
+  2) www.your-live-domain.com
+     what the sitemap lists (usually the live site)
+Choose 1-2 [1]:
+```
+
+Pick 1 and every URL is rewritten onto the staging domain. Nothing to remember and nothing
+to re-run.
+
+When scripting (no terminal to ask in), `--host` does the same thing non-interactively:
+
+```bash
+npm run urls:find -- https://your-site.webflow.io --host=your-site.webflow.io --write
+```
+
+Outside a terminal it never guesses: it says it cannot ask, names the flag, and continues
+with the addresses the sitemap actually lists.
+
+`--host` also accepts a full origin, so the same production sitemap can be pointed at a
+local dev server:
+
+```bash
+npm run urls:find -- https://www.example.com --host=http://localhost:3000 --write
+```
+
+**If a Webflow site serves no sitemap at all**, it is switched off rather than missing:
+turn on *Site settings → SEO → Sitemap → auto-generate* (needs a paid site plan), publish,
+and it appears at `/sitemap.xml`. Failing that, list the pages by hand — Webflow's Pages
+panel and CMS collections are the inventory to copy from.
 
 ## Requirements
 
@@ -199,8 +354,16 @@ with no engine suffix) are still read and treated as Chromium, so existing `audi
 contents don't need renaming.
 
 Otherwise every file is named `<page>-<tool>.<ext>`, where `<page>` is the URL with the
-protocol and domain stripped, slashes turned into underscores, and the site root named
-`homepage`. Example: `https://www.example.com/about` → `about`.
+**protocol** stripped, any trailing slash removed, and slashes turned into underscores —
+the domain stays in. Example: `https://www.example.com/about` → `www.example.com_about`.
+A URL that reduces to nothing becomes `home`.
+
+`browsers.js`'s `pageName()` and the `sed -E` expression in `lighthouse-scan.sh` implement
+the same transform, and they have to stay identical: `merge-pdfs.js` matches a page's axe,
+Lighthouse and WAVE files by this name, so any divergence makes it skip pages silently.
+
+The domain is dropped later, by hand, in the rename step for the evidence pack (see
+`PLAYBOOK.md` step 6) — that is where `homepage` comes from, not from the scripts.
 
 Final merged reports (after the rename step) follow:
 `<page>_<before|after>_<YYYY-MM-DD>.pdf` — e.g. `about_before_2026-07-27.pdf`. The date is
@@ -253,8 +416,31 @@ engine, which is the quicker way to spot an issue that only reproduces in Firefo
 ## WAVE scan
 
 WAVE's free web tool (`wave.webaim.org`) is a JavaScript single-page app with no official
-free API, so there's no reusable `wave-scan.js`. Producing `audits/raw/<page>-wave.json`
-for a set of URLs means, for each URL:
+free API, so there's no reusable `wave-scan.js`. The closest thing to automation is:
+
+```bash
+npm run wave:prompt
+```
+
+which prints a ready-to-paste prompt containing the method below plus the exact output
+filename for every URL in `urls.json` — the filenames are the usual failure point. Paste it
+into a Claude session with browser access. `npm start` prints it automatically when the
+scans finish — no flag and no question, since putting one in front of it is what made this
+step easy to miss. Both also write it to `audits/reports/wave-prompt.txt`, so starting the
+manual questions straight afterwards doesn't scroll it out of reach.
+
+Two things to weigh first. WebAIM sells a **WAVE API** (100 free credits, then from
+$0.025/page) and that is what programmatic access is for; with a key the whole pass is a
+`GET` returning JSON, no browser and no prompt. And driving the free interface depends on
+their internal `window.wave.report` object, so it breaks whenever they change it.
+
+WAVE is also **optional**: it is the sole automated source for none of the 55 criteria, and
+`generate-report.js` does not read it at all. It feeds `combine-report.js`'s CSVs and the
+merged PDF pack, and adds a second independent rule engine next to axe — which is its real
+argument, since Lighthouse's accessibility category is axe-core too (`lighthouse` depends
+on `axe-core`), so without WAVE the toolkit runs one third-party engine, not two.
+
+Doing it by hand, for each URL:
 
 1. Navigate to `https://wave.webaim.org/report#/<full URL>` (this deep-link format works
    directly — no need to type into the form each time).
@@ -312,8 +498,8 @@ generate-report.js     Merges axe + extra + snippet + manual (+ Lighthouse score
 COVERAGE.md            The per-criterion map of which tool verifies what.
 ```
 
-npm scripts: `setup`, `start`, `scan:extra`, `scan:extra:fast`, `scan:filter`,
-`audit:manual`, `audit:manual:list`, `report:findings`.
+npm scripts: `setup`, `urls:find`, `start`, `scan:extra`, `scan:extra:fast`,
+`scan:filter`, `wave:prompt`, `audit:manual`, `audit:manual:list`, `report:findings`.
 
 `extra-checks.js` is Chromium-only by design (layout probes + tab-order simulation);
 engine-specific accessibility-tree differences are already covered by the multi-engine axe

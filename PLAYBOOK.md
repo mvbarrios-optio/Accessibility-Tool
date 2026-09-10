@@ -15,7 +15,10 @@ agent session with browser access.
 ## 0. Before you start
 
 - Confirm `urls.json` lists every page in scope. If the page inventory changed, update
-  this file first — everything downstream keys off it.
+  this file first — everything downstream keys off it. To rebuild it from the site's
+  sitemap: `npm run urls:find -- https://www.example.com --write`. Keep the same list
+  for the retest, or the two passes aren't comparable; if you scoped the baseline with
+  `--sample`, record which pages it covered.
 - Decide the date stamp for this pass (the baseline date, or today's date for a retest)
   and whether files should be tagged `before` or `after`.
 - Decide where the evidence pack will be filed (shared drive, ticket attachment, repo
@@ -80,9 +83,21 @@ a real terminal with a browser binary rather than a sandboxed environment.
 ## 3. Run the WAVE pass **(you, browser, or Claude)**
 
 Scan the same list of URLs from `urls.json` through WAVE and produce
-`audits/raw/<page>-wave.json` for each — see the README's "WAVE scan" section for the
-exact method (there's no standalone script, since WAVE's free tool has no API). This is a
-good step to hand to Claude in a session with a browser extension connected.
+`audits/raw/<page>-wave.json` for each. There's no standalone script — WAVE's free tool has
+no API — so run:
+
+```
+npm run wave:prompt
+```
+
+and paste what it prints into a Claude session with browser access. It contains the method
+and the exact output filename for every URL in `urls.json`. `npm start` prints the same
+thing when the scans finish, and both save it to `audits/reports/wave-prompt.txt` so it
+survives whatever scrolls past.
+
+If this pass has to be repeated regularly, WebAIM's paid API (100 free credits, then from
+$0.025/page) turns it into a plain request returning JSON and removes the dependency on
+their web interface, which can change at any time.
 
 If a page's template is shared with other pages (e.g. blog posts), don't shortcut this to
 "scan one, reuse for all" — real content differences (image counts, headings, contrast)
@@ -176,14 +191,20 @@ Walks every criterion that needs human judgement, with the test steps inline. Fa
 recorded here (pages, component, severity, evidence filename) flow straight into the
 findings report. This step is what makes the audit *complete*.
 
+Answer `?` on any criterion the person running the pass cannot judge. It is recorded as
+needing accessibility expertise and appears in the report under "Needs accessibility
+expertise" as an open gap — the audit stays honest, and the row is a handover item rather
+than a guess. Do not let a pass be recorded on anything nobody actually verified.
+
 ### 12. Generate the findings report **(you, terminal)**
 
 ```
 npm run report:findings -- --label "Baseline 2026-08"
 ```
 Writes `audits/reports/findings-report.md` + `findings.json`. The report shows all 55
-criteria with a status each — anything still ⬜ NOT TESTED or 🔎 AUTO-CLEAN means the audit
-isn't finished; go back to step 11.
+criteria with a status each — anything still ⬜ NOT TESTED, 🔎 AUTO-CLEAN or 🙋 NEEDS
+EXPERT means the audit isn't finished. The first two go back to step 11; NEEDS EXPERT rows
+need a specialist to answer them.
 
 ### 13. Fix guide **(Claude)**
 

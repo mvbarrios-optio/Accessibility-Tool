@@ -7,10 +7,13 @@ script; `PLAYBOOK.md` has the formal evidence procedure. This file is the practi
 If you only remember three commands, remember these:
 
 ```bash
-npm run setup                                      # once per machine
-npm start                                          # all the automated scans
-npm run report:findings -- --label "Baseline"      # the report
+npm run setup                                    # once per machine
+npm start                                        # asks for the site, then scans it
+npm run report:findings -- --label "Baseline"    # the report
 ```
+
+You do not need to edit any file or remember any option: `npm start` asks which site to
+check, finds its pages itself, and asks about anything it can't decide on its own.
 
 Everything below explains what those do and what to do in between.
 
@@ -52,7 +55,72 @@ npx playwright install chromium firefox webkit
 
 **The pages to scan are defined in `urls.json`** (in the toolkit root): a JSON array with
 one URL per page. Every scan (axe, Lighthouse, extra-checks) reads from there — to audit a
-different site you change only that list, without touching any script:
+different site you change only that list, without touching any script.
+
+**You normally don't touch this file.** The first time you run `npm start` it asks:
+
+```
+No pages to check yet — let's find them.
+
+Which site do you want to check? (e.g. www.example.com)
+> www.your-site.com
+```
+
+From that one answer it finds the site's sitemap (via `robots.txt` or the usual paths,
+following nested sitemaps), shows you the pages, and asks whether to save them. Nothing is
+written until you say yes, and an existing list is backed up to `urls.json.bak` first.
+
+**If the site has no sitemap**, that is not a dead end — it offers to find the pages by
+following the site's own links instead:
+
+```
+✗ no sitemap found for https://www.your-site.com. Checked robots.txt, /sitemap.xml, …
+
+Find the pages by following the site's links instead? [Y/n]
+```
+
+Say yes and it walks the site from the home page. It only finds pages that are actually
+linked, so anything unlinked or behind a login still has to be added by hand — it tells
+you that rather than letting the list look complete.
+
+To run just that step on its own:
+
+```bash
+npm run urls:find -- https://www.your-site.com            # sitemap, then offers to crawl
+npm run urls:find -- https://www.your-site.com --crawl    # go straight to following links
+```
+
+Big sites need trimming, because a sitemap is usually much larger than an audit scope:
+
+```bash
+npm run urls:find -- https://www.your-site.com --exclude='/tag/|/author/'
+npm run urls:find -- https://www.your-site.com --sample --limit=25
+```
+
+`--sample` keeps one page per template (`/blog/*`, `/products/*`, …) and tells you exactly
+what it left out. It's a good way to scope a first pass — but the pages left out are not
+audited, so don't treat a sampled run as full coverage.
+
+**Auditing a staging site?** Its sitemap almost certainly lists the *production*
+addresses. Webflow does this: `https://your-site.webflow.io/sitemap.xml` exists, but the
+addresses inside point at the live domain. You don't need to do anything about it — it
+notices and asks:
+
+```
+  1) your-site.webflow.io
+     the address you gave (usually the staging or test site)
+  2) www.your-live-domain.com
+     what the sitemap lists (usually the live site)
+Choose 1-2 [1]:
+```
+
+Pick 1 and every address is rewritten onto the staging site.
+
+If a Webflow site serves no sitemap at all, it's turned off rather than unavailable:
+enable *Site settings → SEO → Sitemap → auto-generate* (paid site plan), publish, and it
+appears at `/sitemap.xml`.
+
+Or write the list by hand:
 
 ```json
 [
@@ -102,9 +170,26 @@ npm start -- --skip=lighthouse       # skip a step: axe | lighthouse | extra
 Any step can also be run on its own: `npm run scan:axe`, `npm run scan:lighthouse`,
 `npm run scan:extra`.
 
-**WAVE has no script**: it's done from the browser (see the README's "WAVE scan" section),
-or you can ask Claude to do it in a session with a browser extension connected. If your
-process needs the PDF evidence pack, those steps (`pdf:axe`, `merge`, …) are in
+**WAVE has no script**, because its free tool has no API. When the scans finish, `npm start`
+prints a ready-to-paste prompt for it — you don't have to ask for it or remember a command.
+It also lands in `audits/reports/wave-prompt.txt`, so you can copy it later even if the
+manual questions have scrolled it away:
+
+```bash
+npm run wave:prompt        # print it again any time
+```
+
+Paste that into a Claude session with browser access. The prompt already contains the
+method and, more importantly, the exact output filename for each of your URLs — getting a
+filename wrong is how this step usually fails silently.
+
+Two honest caveats. WAVE is **optional**: it's the sole automated source for none of the 55
+criteria, and the findings report doesn't read it — it feeds the CSV summaries and the PDF
+evidence pack, and gives you a second rule engine next to axe. And WebAIM sells a proper
+**WAVE API** (100 free credits, then from $0.025/page); with a key it's a plain request
+returning JSON, no browser and no prompt, and it doesn't break when they change their site.
+
+If your process needs the PDF evidence pack, those steps (`pdf:axe`, `merge`, …) are in
 `PLAYBOOK.md` and are independent of this guide.
 
 ---
@@ -133,10 +218,19 @@ If the site has no login and no special states, you can skip this step.
 npm run audit:manual
 ```
 
-- It shows you each criterion in turn: what it means, what the automated tools already
-  covered, and the concrete steps to test it by hand.
-- You answer with one letter: `p` pass · `f` fail · `n` not applicable · `s` skip for now ·
-  `q` save and quit.
+- It shows you each criterion in turn, numbered `[12/54]` so you know how far along you
+  are: what it means, what the automated tools already covered, and the concrete steps to
+  test it by hand.
+- `npm start` offers to start these for you when the scans finish, so you don't have to
+  remember the command.
+- You answer with one letter: `p` pass · `f` fail · `n` not applicable ·
+  **`?` I can't judge this** · `s` skip for now · `q` save and quit.
+- **Use `?` freely.** Plenty of these criteria need real accessibility knowledge — live
+  captions, flashing content, whether alt text is actually meaningful. `?` records that a
+  person looked and could not decide, and asks what blocked you. The report then lists it
+  under "Needs accessibility expertise" as an open gap, with your note, so it goes to
+  someone qualified instead of being guessed at as a pass. Guessing `p` is the one thing
+  that makes an audit worse than not doing it.
 - If you answer `f`, it asks for: affected pages, component, what's wrong, severity, and
   optionally the evidence screenshot — all of which goes straight into the report.
 - **It saves after every answer.** Quit with `q` and pick it up another day: on the next
@@ -172,10 +266,14 @@ Produces:
 - ✅ PASS — verified.
 - 🔎 AUTO-CLEAN — the tools found nothing, but the manual check is still pending.
   **Not a pass yet.**
+- 🙋 NEEDS EXPERT — someone looked and could not judge it (answered `?`). An open gap,
+  listed separately with whatever note they left, ready to hand to a specialist.
 - ⬜ NOT TESTED — no source touched it. The audit isn't complete while any of these remain.
 - ➖ N/A — marked not applicable during the manual audit.
 
-If AUTO-CLEAN or NOT TESTED rows remain, go back to step 4 and close them.
+If AUTO-CLEAN, NEEDS EXPERT or NOT TESTED rows remain, the audit is not finished. Go back
+to step 4 for the first and last; NEEDS EXPERT rows need someone with accessibility
+expertise to answer them.
 
 ---
 
@@ -209,6 +307,16 @@ folder): the before/after comparison is the evidence that the fixes landed.
 
 - **"could not launch Chromium/Firefox/WebKit"** → the browsers aren't installed:
   run `npm run setup`, or `npx playwright install chromium firefox webkit`.
+- **"no sitemap found"** → say yes to the crawl it offers, or pass the sitemap URL
+  directly if it lives at an unusual path. On Webflow, check that *Site settings → SEO →
+  Sitemap → auto-generate* is on and the site has been published.
+- **The crawl found fewer pages than you expected** → it can only follow links. Pages that
+  nothing links to, or that sit behind a login, have to be added to `urls.json` by hand.
+  Raise `--max-pages=<n>` if it stopped at the cap (it says so when it does).
+- **"These pages are on a different address than the one you gave"** → normal for a
+  staging site, whose sitemap lists the live addresses. Just answer the question: 1 for
+  the address you typed, 2 for what the sitemap lists. In a script, pass
+  `--host=<the address you want>` instead.
 - **"Dependencies are not installed yet"** → run `npm run setup` before `npm start`.
 - **A page fails with a timeout** → raise the allowance:
   `NAV_TIMEOUT=90000 npm start`.

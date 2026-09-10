@@ -168,6 +168,9 @@ const rows = criteriaData.criteria.map(c => {
   let status;
   if (m && m.result === 'na') status = f.length ? 'fail' : 'na';
   else if (f.length) status = 'fail';
+  // A person looked and could not judge it. Never a pass, and distinct from
+  // 'auto-clean' (nobody looked yet) so the report can name who to hand it to.
+  else if (m && m.result === 'unsure') status = 'needs-expert';
   else if (m && m.result === 'pass') status = r.length ? 'review' : 'pass';
   else if (r.length) status = 'review';
   else if (sources.length && !c.coverage.manual) status = 'pass';
@@ -179,7 +182,8 @@ const rows = criteriaData.criteria.map(c => {
 const count = s => rows.filter(r => r.status === s).length;
 const totals = {
   fail: count('fail'), review: count('review'), pass: count('pass'),
-  autoClean: count('auto-clean'), notTested: count('not-tested'), na: count('na')
+  autoClean: count('auto-clean'), notTested: count('not-tested'), na: count('na'),
+  needsExpert: count('needs-expert')
 };
 
 // ── 6. Markdown report ───────────────────────────────────────────────────────
@@ -189,7 +193,8 @@ const siteGuess = (() => {
 const SITE = flag('site') || siteGuess;
 const STATUS_LABEL = {
   fail: '❌ FAIL', review: '⚠️ REVIEW', pass: '✅ PASS',
-  'auto-clean': '🔎 AUTO-CLEAN*', 'not-tested': '⬜ NOT TESTED', na: '➖ N/A'
+  'auto-clean': '🔎 AUTO-CLEAN*', 'not-tested': '⬜ NOT TESTED', na: '➖ N/A',
+  'needs-expert': '🙋 NEEDS EXPERT'
 };
 
 let md = `# Accessibility Findings Report — ${SITE}
@@ -214,10 +219,11 @@ let md = `# Accessibility Findings Report — ${SITE}
 | ⚠️ REVIEW | ${totals.review} | Automated flags that need human confirmation |
 | ✅ PASS | ${totals.pass} | Verified passing |
 | 🔎 AUTO-CLEAN* | ${totals.autoClean} | Automated checks found nothing, but the manual check is still pending — NOT yet a pass |
+| 🙋 NEEDS EXPERT | ${totals.needsExpert} | A person reviewed it but could not judge it — needs accessibility expertise |
 | ⬜ NOT TESTED | ${totals.notTested} | No data from any source — coverage gap |
 | ➖ N/A | ${totals.na} | Marked not applicable in the manual audit |
 
-${(totals.autoClean || totals.notTested) ? `> **Coverage warning:** ${totals.autoClean + totals.notTested} criteria are not fully verified yet. Run \`node manual-audit.js\` to close the gap — an audit is not complete until every row is FAIL, PASS or N/A.\n` : '> Full coverage: every criterion has a definitive result.\n'}
+${(totals.autoClean || totals.notTested || totals.needsExpert) ? `> **Coverage warning:** ${totals.autoClean + totals.notTested + totals.needsExpert} criteria are not fully verified yet. Run \`npm run audit:manual\` to close the gap — an audit is not complete until every row is FAIL, PASS or N/A.${totals.needsExpert ? ` ${totals.needsExpert} of them were looked at but could not be judged without accessibility expertise; those are listed separately below.` : ''}\n` : '> Full coverage: every criterion has a definitive result.\n'}
 ## Checklist — all 55 criteria
 
 | SC | Criterion | Level | Status | Verified by |
@@ -274,6 +280,21 @@ if (gapRows.length) {
   }
 }
 
+// Needs-expert handover list: named separately because these are not "nobody
+// got to it yet" — someone tried, and recorded why they could not decide.
+const expertRows = rows.filter(r => r.status === 'needs-expert');
+if (expertRows.length) {
+  md += `\n## Needs accessibility expertise (${expertRows.length})\n\n`;
+  md += `Someone reviewed these and could not judge them. They are open gaps, not passes.\n\n`;
+  for (const r of expertRows) {
+    const c = bySc[r.sc];
+    md += `- **${r.sc} ${r.name}** (Level ${r.level})`;
+    if (r.manual && r.manual.note) md += ` — blocked on: ${r.manual.note}`;
+    md += `\n  - What it requires: ${c.meaning}\n`;
+    md += `  - How to test: ${c.manualSteps[0] || 'see criteria.json'}\n`;
+  }
+}
+
 // Lighthouse annex
 if (lhScores.length) {
   md += `\n## Annex: Lighthouse accessibility scores (Chromium)\n\n| Page | Score |\n|---|---|\n`;
@@ -318,9 +339,12 @@ fs.writeFileSync(jsonFile, JSON.stringify({
 }, null, 2));
 
 console.log(`findings-report.md — ${SITE} — ${LABEL}`);
-console.log(`  ❌ fail: ${totals.fail}   ⚠️ review: ${totals.review}   ✅ pass: ${totals.pass}   🔎 auto-clean: ${totals.autoClean}   ⬜ not tested: ${totals.notTested}   ➖ n/a: ${totals.na}`);
+console.log(`  ❌ fail: ${totals.fail}   ⚠️ review: ${totals.review}   ✅ pass: ${totals.pass}   🔎 auto-clean: ${totals.autoClean}   🙋 needs expert: ${totals.needsExpert}   ⬜ not tested: ${totals.notTested}   ➖ n/a: ${totals.na}`);
 console.log(`\nWritten:\n  ${mdFile}\n  ${jsonFile}`);
-if (totals.autoClean + totals.notTested > 0) {
-  console.log(`\n⚠ ${totals.autoClean + totals.notTested} criteria still unverified — run: node manual-audit.js`);
+if (totals.autoClean + totals.notTested + totals.needsExpert > 0) {
+  console.log(`\n⚠ ${totals.autoClean + totals.notTested + totals.needsExpert} criteria still unverified — run: npm run audit:manual`);
+  if (totals.needsExpert) {
+    console.log(`  ${totals.needsExpert} of those need accessibility expertise — see "Needs accessibility expertise" in the report.`);
+  }
 }
 console.log(`\nNext: give findings-report.md to Claude to generate the fix guide (instructions are at the end of the report).`);

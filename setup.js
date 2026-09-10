@@ -61,8 +61,8 @@ console.log('\n─────────────────────�
 console.log('✓ Setup complete.\n');
 
 if (!urlCount) {
-  console.log('Next: open urls.json and list the pages you want audited, one URL per line.');
-  console.log('      urls.example.json shows the shape. Then run:\n');
+  console.log('Next: just run the scans. It will ask which site to check and find');
+  console.log('      its pages for you:\n');
   console.log('      npm start\n');
 } else {
   console.log(`urls.json already lists ${urlCount} page(s). To run the automated scans:\n`);
