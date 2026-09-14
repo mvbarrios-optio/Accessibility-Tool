@@ -15,8 +15,10 @@ being hidden behind a single browser. See "Browser engines" below.
 
 ## Quick start — from zero to a findings report
 
-Four commands, in order. You need Node.js ≥ 18 and npm installed; nothing else. The
-toolkit asks for anything it needs, so none of these require flags or editing a file.
+Five steps, but only three commands you have to type: `npm run setup`, `npm start`, and
+the report at the end — `npm start` hands you the other two. You need Node.js ≥ 18 and npm
+installed; nothing else. The toolkit asks for anything it needs, so nothing here requires
+flags or editing a file.
 
 **1. Set up, once per machine:**
 
@@ -52,6 +54,10 @@ Firefox and WebKit, then Lighthouse, then the extra checks axe misses (reflow, z
 target size…). It prints progress as it goes and ends with a summary of what produced
 evidence and what didn't. The `audits/` folders are created for you.
 
+When the scans finish it hands you the next two things rather than leaving you to find
+them: it prints the WAVE prompt (step 3 below, optional) and then asks whether to start the
+manual questions (step 4). Answering yes there means you never type step 4's command.
+
 On later runs it reuses the saved list and goes straight to scanning. Useful variations:
 
 ```bash
@@ -66,14 +72,20 @@ Each pass can still be run on its own — see "Running each tool" below.
 menu, form errors), paste `console-snippet.js` into DevTools on that page and save the
 JSON it copies into `audits/raw/` — the file header has the exact steps.
 
-**3. Answer the human-judgement checks** (keyboard, screen reader, judgement calls — it
-asks one question at a time, and saves after every answer so you can stop and resume):
+**3. The WAVE pass** *(optional — skip it and nothing below changes)*. `npm start` prints a
+prompt to paste into a Claude session with browser access, and saves it to
+`audits/reports/wave-prompt.txt`. Print it again any time with `npm run wave:prompt`. See
+"WAVE scan" below for what it adds and what it costs.
+
+**4. Answer the human-judgement checks** (keyboard, screen reader, judgement calls — it
+asks one question at a time, and saves after every answer so you can stop and resume).
+`npm start` offers to start these for you; to run them yourself:
 
 ```bash
 npm run audit:manual
 ```
 
-**4. Build the findings report:**
+**5. Build the findings report:**
 
 ```bash
 npm run report:findings -- --label "Baseline"
@@ -83,10 +95,12 @@ Open `audits/reports/findings-report.md`: a status for all 55 WCAG 2.2 A/AA crit
 every failure with page + CSS selector, and — at the end — a ready-made prompt for
 turning it into a step-by-step fix guide with Claude.
 
-That's the whole loop. `GETTING-STARTED.md` walks the same path in more practical detail,
-`COVERAGE.md` shows which tool verifies which criterion, and the WAVE pass and PDF
-evidence flow (below) are part of the formal evidence-pack process in `PLAYBOOK.md` —
-not required just to find and fix issues.
+That's the whole loop. After the fixes, `npm run report:compare` puts the two passes side
+by side and says what actually got fixed — see "Comparing a baseline with a retest" below.
+
+`GETTING-STARTED.md` walks the same path in more practical detail, `COVERAGE.md` shows
+which tool verifies which criterion, and the PDF evidence flow (below) is part of the
+formal evidence-pack process in `PLAYBOOK.md` — not required just to find and fix issues.
 
 ## Folder layout
 

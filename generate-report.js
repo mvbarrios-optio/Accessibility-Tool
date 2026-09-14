@@ -352,3 +352,10 @@ if (totals.autoClean + totals.notTested + totals.needsExpert > 0) {
   }
 }
 console.log(`\nNext: give findings-report.md to Claude to generate the fix guide (instructions are at the end of the report).`);
+
+// The moment this file exists is the only moment someone can be told to keep it:
+// the next pass overwrites it, and without the earlier copy there is nothing for
+// compare-reports.js to measure the retest against.
+console.log(`\nPlanning a retest? Keep this pass's data before the next run overwrites it:`);
+console.log(`  cp ${jsonFile} ${path.join(REPORTS_DIR, 'findings-baseline.json')}`);
+console.log(`Then afterwards:  npm run report:compare -- ${path.join(REPORTS_DIR, 'findings-baseline.json')} ${jsonFile}`);
