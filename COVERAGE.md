@@ -91,5 +91,8 @@ pretend it's automated.
    command — plus the WAVE pass (browser, see the README)
 2. `node extra-checks.js` — the automated checks above, if run on its own
 3. Console snippet on any page state the crawler can't reach (menus open, forms in error state, logged-in pages)
-4. `node manual-audit.js` — guided answers for everything that needs eyes and ears (keyboard, screen reader, judgement calls)
+4. `npm run audit:manual` — guided answers for everything that needs eyes and ears
+   (keyboard, screen reader, judgement calls). Answer `?` on anything you cannot judge:
+   it is recorded as needing accessibility expertise and stays an open gap in the report,
+   which is the honest outcome and far better than a guessed pass.
 5. `node generate-report.js` — merges 1–4, shows exactly what's still unverified, and produces the findings report for the fix guide

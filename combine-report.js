@@ -5,7 +5,33 @@ const { ENGINE_KEYS, pageName } = require('./browsers');
 const rawDir = './audits/raw';
 const reportsDir = './audits/reports';
 
-const axeSummary = JSON.parse(fs.readFileSync(path.join(reportsDir, 'axe-summary.json')));
+// axe-summary.json is the one required input: every row keys off it. Say so
+// plainly rather than letting an ENOENT stack trace be the explanation — the
+// usual cause is simply that the axe pass has not run yet.
+const summaryPath = path.join(reportsDir, 'axe-summary.json');
+if (!fs.existsSync(summaryPath)) {
+  console.error(`✗ ${summaryPath} not found, so there is nothing to combine.\n`);
+  console.error('  It is written by the axe pass. Run that first:');
+  console.error('    npm start                 (axe + Lighthouse + extra checks)');
+  console.error('    npm run scan:axe          (just axe)\n');
+  console.error('  Lighthouse and WAVE results are folded in when present, but the');
+  console.error('  axe summary is what the rows are built from.');
+  process.exit(1);
+}
+
+let axeSummary;
+try {
+  axeSummary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+} catch (err) {
+  console.error(`✗ Could not read ${summaryPath} — ${err.message}`);
+  console.error('  If a scan was interrupted the file may be incomplete. Re-run the axe pass.');
+  process.exit(1);
+}
+
+if (!Array.isArray(axeSummary) || !axeSummary.length) {
+  console.error(`✗ ${summaryPath} has no rows — the axe pass produced no results.`);
+  process.exit(1);
+}
 
 function lighthouseScore(url) {
   const lhPath = path.join(rawDir, `${pageName(url)}-lighthouse.report.json`);

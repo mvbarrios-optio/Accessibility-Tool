@@ -3,3 +3,6 @@ node_modules/
 
 # Audit output: regenerated on every pass, and often client data.
 audits/
+
+# Backup written when sitemap-to-urls.js overwrites a curated list.
+urls.json.bak
