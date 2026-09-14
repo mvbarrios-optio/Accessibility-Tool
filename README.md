@@ -96,6 +96,7 @@ a11y-audit-toolkit/
   find-pages.js              `npm run urls:find` — builds urls.json from a sitemap, or by
                              following the site's links when there is no sitemap
   wave-prompt.js             `npm run wave:prompt` — prints the paste-ready WAVE prompt
+  compare-reports.js         `npm run report:compare` — baseline vs retest: what was fixed
   ask.js                     Shared terminal prompts (safe in CI: never blocks on input)
   run-scans.js               `npm start` — runs axe + Lighthouse + extra checks in one go
   urls.json                  Pages to scan (ships empty)
@@ -461,6 +462,42 @@ separate "descriptions" call for any newly-seen issue type avoids it. Since WAVE
 descriptions are fixed boilerplate (not per-page), you only need to fetch a description
 once per unique category/title, not once per page.
 
+## Comparing a baseline with a retest
+
+Finding problems is the baseline's job; proving they are gone is the retest's. Keep each
+pass's `findings.json` before the next one overwrites it, then compare:
+
+```bash
+cp audits/reports/findings.json audits/reports/findings-baseline.json
+# …fix things, re-run the pass…
+npm run report:compare -- audits/reports/findings-baseline.json audits/reports/findings.json
+```
+
+It writes `audits/reports/comparison-report.md` and prints:
+
+```
+Baseline 2026-09  →  Retest 2026-10
+  ✅ fixed:           2
+  ❌ new regressions: 1
+  ➖ still present:   59
+  ⚠️  unverifiable:    5  (page not scanned again)
+  criteria failing:  7 → 6
+```
+
+Two things it is careful about, because both are ways a retest can flatter itself:
+
+- **A finding whose page was not scanned again is not fixed.** It is reported as
+  *unverifiable*, never as progress. That is why `findings.json` records which pages the
+  pass covered — without it, narrowing the scope looks exactly like fixing things.
+- **A finding on a page that is new to this pass is not a regression.** It was simply
+  never measured before, and is listed separately.
+
+A finding keeps its identity across passes by rule + page + criterion, not by how many
+elements it hit — so 3 bad elements becoming 1 is reported as the same finding, improved,
+rather than as one fix plus one new problem.
+
+It exits non-zero when there are regressions, so a scheduled retest can fail a build.
+
 ## Evidence pack
 
 `PLAYBOOK.md` covers the formal evidence process end to end: what to run, in what order,
@@ -499,7 +536,8 @@ COVERAGE.md            The per-criterion map of which tool verifies what.
 ```
 
 npm scripts: `setup`, `urls:find`, `start`, `scan:extra`, `scan:extra:fast`,
-`scan:filter`, `wave:prompt`, `audit:manual`, `audit:manual:list`, `report:findings`.
+`scan:filter`, `wave:prompt`, `audit:manual`, `audit:manual:list`, `report:findings`,
+`report:compare`.
 
 `extra-checks.js` is Chromium-only by design (layout probes + tab-order simulation);
 engine-specific accessibility-tree differences are already covered by the multi-engine axe

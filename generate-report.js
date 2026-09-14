@@ -335,6 +335,10 @@ const jsonFile = path.join(REPORTS_DIR, 'findings.json');
 fs.writeFileSync(mdFile, md);
 fs.writeFileSync(jsonFile, JSON.stringify({
   site: SITE, label: LABEL, generatedAt: new Date().toISOString(),
+  // Which pages this pass actually covered. compare-reports.js needs it to tell
+  // a fixed finding from a page that simply was not scanned this time — without
+  // it, narrowing the scope between passes looks identical to fixing things.
+  pages: [...axePages].sort(),
   totals, criteria: rows
 }, null, 2));
 

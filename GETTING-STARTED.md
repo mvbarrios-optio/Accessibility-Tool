@@ -298,8 +298,21 @@ node manual-audit.js --all          # re-answer everything for the "after" state
 npm run report:findings -- --label "Retest 2026-XX"
 ```
 
-Save the baseline report before regenerating (copy it under another name or to another
-folder): the before/after comparison is the evidence that the fixes landed.
+**Save the baseline before regenerating**, or you lose the thing you are comparing against:
+
+```bash
+cp audits/reports/findings.json audits/reports/findings-baseline.json
+```
+
+Then, after the retest, get the before/after in one command:
+
+```bash
+npm run report:compare -- audits/reports/findings-baseline.json audits/reports/findings.json
+```
+
+That writes `comparison-report.md`: what was fixed, what came back, what is still there.
+It will not count a finding as fixed if its page was not scanned again — it says
+"cannot be verified" instead, so a narrower retest cannot pass itself off as progress.
 
 ---
 

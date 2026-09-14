@@ -215,6 +215,17 @@ fix ready to paste into an issue tracker. Log each fix in the change log as usua
 ## Re-running for a retest
 
 Repeat steps 1–12 with `before` swapped for `after` and a new date stamp, and re-answer
-the manual pass with `node manual-audit.js --all`. Keep the baseline PDFs and the baseline
-`findings-report.md` in their own dated folder rather than overwriting them — the retest
-depends on being able to compare the two.
+the manual pass with `node manual-audit.js --all`. Keep the baseline PDFs, the baseline
+`findings-report.md` **and its `findings.json`** in their own dated folder rather than
+overwriting them — the retest depends on being able to compare the two.
+
+Then produce the comparison, which is the evidence the retest exists to create:
+
+```
+npm run report:compare -- <baseline>/findings.json audits/reports/findings.json
+```
+
+`audits/reports/comparison-report.md` lists what was fixed, what regressed, what is still
+present, and every criterion whose status moved. Findings whose page was not scanned again
+are reported as unverifiable rather than fixed, and the command exits non-zero when there
+are regressions. File it alongside the two passes' reports.

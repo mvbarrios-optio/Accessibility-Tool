@@ -20,6 +20,7 @@
     "audit:manual": "node manual-audit.js",
     "audit:manual:list": "node manual-audit.js --list",
     "report:findings": "node generate-report.js",
+    "report:compare": "node compare-reports.js",
     "pdf:axe": "node axe-to-pdf.js",
     "pdf:lighthouse": "node lighthouse-to-pdf.js",
     "pdf:wave": "node wave-to-pdf.js",
@@ -49,5 +50,8 @@
   },
   "dependencies": {
     "@playwright/test": "^1.62.1"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
