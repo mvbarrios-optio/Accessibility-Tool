@@ -225,6 +225,11 @@ npm run audit:manual
   remember the command.
 - You answer with one letter: `p` pass · `f` fail · `n` not applicable ·
   **`?` I can't judge this** · `s` skip for now · `q` save and quit.
+- **Stuck on a lot of them?** `npm run assist:prompt` prints a prompt for a Claude session
+  with browser access that drafts the ones an agent can genuinely assess — link purpose,
+  alt text, heading quality, labels — starting from what the scans already found. It gives
+  you a draft with evidence and a confidence per criterion; you still answer here. It
+  deliberately leaves out the 12 that need a screen reader, a real device or human senses.
 - **Use `?` freely.** Plenty of these criteria need real accessibility knowledge — live
   captions, flashing content, whether alt text is actually meaningful. `?` records that a
   person looked and could not decide, and asks what blocked you. The report then lists it
