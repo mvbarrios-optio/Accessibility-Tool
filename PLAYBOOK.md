@@ -159,6 +159,12 @@ Every distinct issue found needs its own row in your change log or issue tracker
 page, component, and WCAG criterion. The exported reports are the evidence a row points
 to, not a substitute for the row. Do this per finding, not once at the end.
 
+**Evidence screenshots** are optional and yours to organise, but the manual audit records
+whatever filename you give it and prints it in the findings report, so it only helps if the
+name identifies the finding. `<page>-<criterion>.png` — `contact-2.4.7.png` — is enough:
+it sorts sensibly and matches a report row without opening it. Keep them wherever the rest
+of the pass's evidence lives.
+
 ## Closing the manual gap and producing the findings report
 
 The steps above produce the *automated-tool* evidence. These four close the remaining

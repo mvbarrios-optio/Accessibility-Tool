@@ -162,7 +162,10 @@ const queue = manualCriteria.filter(c => {
       entry.issue = await ask('   What is wrong (one line, this goes in the report): ');
       const sev = (await ask('   Severity [h]igh / [m]edium / [l]ow: ')).toLowerCase();
       entry.severity = sev.startsWith('h') ? 'high' : sev.startsWith('l') ? 'low' : 'medium';
-      entry.evidence = await ask('   Evidence file, if any (screenshot per naming convention, Enter to skip): ');
+      // Self-explanatory rather than pointing at a convention: the phrase this
+      // replaced ("per naming convention") referred to one defined in the brief
+      // of the project this toolkit came from, which no longer exists here.
+      entry.evidence = await ask('   Evidence file, if any (e.g. "contact-2.4.7.png", Enter to skip): ');
     } else if (answer === '?') {
       console.log(`   Recorded as needing an expert — it stays an open gap in the report.`);
       const note = await ask('   What stopped you deciding? (optional, helps whoever picks it up): ');
