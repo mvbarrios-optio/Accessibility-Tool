@@ -16,7 +16,7 @@ being hidden behind a single browser. See "Browser engines" below.
 ## Quick start — from zero to a findings report
 
 Five steps, but only three commands you have to type: `npm run setup`, `npm start`, and
-the report at the end — `npm start` hands you the other two. You need Node.js ≥ 18 and npm
+the report at the end — `npm start` hands you the other two and names the optional ones. You need Node.js ≥ 18 and npm
 installed; nothing else. The toolkit asks for anything it needs, so nothing here requires
 flags or editing a file.
 
@@ -77,13 +77,19 @@ prompt to paste into a Claude session with browser access, and saves it to
 `audits/reports/wave-prompt.txt`. Print it again any time with `npm run wave:prompt`. See
 "WAVE scan" below for what it adds and what it costs.
 
-**4. Answer the human-judgement checks** (keyboard, screen reader, judgement calls — it
-asks one question at a time, and saves after every answer so you can stop and resume).
-`npm start` offers to start these for you; to run them yourself:
+**4. Answer the human-judgement checks** — 54 criteria no tool can settle. This is the
+bulk of the audit. It asks one question at a time and saves after every answer, so you can
+stop and resume; `npm start` offers to start it for you.
 
 ```bash
-npm run audit:manual
+npm run assist:prompt     # optional: have Claude draft the ones it can assess
+npm run audit:manual      # you answer, using that draft as input
 ```
+
+`assist:prompt` is worth running first on a site of any size — it drafts link purpose,
+alt-text quality, heading quality and similar from the scan results, so you arrive at
+those questions with evidence rather than a blank page. It never answers for you; see
+"Drafting the judgement checks with Claude" below.
 
 **5. Build the findings report:**
 

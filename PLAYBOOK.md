@@ -191,8 +191,17 @@ DevTools, save the JSON it copies as `audits/raw/<page>-snippet.json`.
 ### 11. Manual audit **(you, keyboard + screen reader)**
 
 ```
+npm run assist:prompt     # optional, first — see below
 npm run audit:manual      # resumable; npm run audit:manual:list shows progress
 ```
+
+`assist:prompt` prints a prompt for a Claude session with browser access that drafts the
+criteria an agent can assess from page content — link purpose, alt-text quality, heading
+quality, labels — starting from the scan results rather than from nothing. It produces a
+draft with evidence and a confidence per criterion; you still record every answer below. It
+excludes the 12 criteria that need a screen reader, a real device, human senses, or an
+action an agent must not take, and those must be answered by a person. For an evidence
+pack, note in the record that a draft was used — the answers are still yours.
 Walks every criterion that needs human judgement, with the test steps inline. Failures
 recorded here (pages, component, severity, evidence filename) flow straight into the
 findings report. This step is what makes the audit *complete*.

@@ -9,8 +9,12 @@ If you only remember three commands, remember these:
 ```bash
 npm run setup                                    # once per machine
 npm start                                        # asks for the site, then scans it
+npm run audit:manual                             # the questions only a person can answer
 npm run report:findings -- --label "Baseline"    # the report
 ```
+
+`npm start` offers to start the questions for you, and names the two optional helpers along
+the way: `npm run wave:prompt` and `npm run assist:prompt`.
 
 You do not need to edit any file or remember any option: `npm start` asks which site to
 check, finds its pages itself, and asks about anything it can't decide on its own.
@@ -215,8 +219,16 @@ If the site has no login and no special states, you can skip this step.
 ## Step 4 — guided manual audit (terminal + keyboard + screen reader)
 
 ```bash
-npm run audit:manual
+npm run assist:prompt     # optional, first: Claude drafts what it can assess
+npm run audit:manual      # you answer
 ```
+
+On a site of any size, run `assist:prompt` first. It prints a prompt for a Claude session
+with browser access that drafts the criteria an agent can genuinely judge — link purpose in
+context, whether alt text says anything useful, heading quality — starting from what your
+scans already found. You get a draft with evidence and a confidence per criterion, then
+answer here. It deliberately leaves out the 12 criteria needing a screen reader, a real
+device or human senses.
 
 - It shows you each criterion in turn, numbered `[12/54]` so you know how far along you
   are: what it means, what the automated tools already covered, and the concrete steps to

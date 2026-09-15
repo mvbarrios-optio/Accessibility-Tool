@@ -106,6 +106,11 @@ const queue = manualCriteria.filter(c => {
   console.log(`${Math.max(1, Math.round(queue.length * 0.5))}–${Math.max(2, Math.round(queue.length * 1.5))} minutes if you know the site, longer where you have to go and test.`);
   console.log(`\nYou will need: a keyboard, browser zoom, and a screen reader for some`);
   console.log(`questions (NVDA on Windows/Chrome, or VoiceOver on Mac/Safari).`);
+  if (queue.length > 20) {
+    console.log(`\nTip: npm run assist:prompt drafts the ones an agent can assess (link`);
+    console.log(`purpose, alt text, heading quality) from the scan results, so you arrive`);
+    console.log(`at those with evidence in hand. You still answer them here.`);
+  }
   console.log(`\nEvery answer is saved immediately. Press q whenever you want to stop —`);
   console.log(`next time it picks up exactly where you left off.`);
   console.log(`\nAnswers:`);
