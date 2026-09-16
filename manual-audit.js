@@ -141,6 +141,16 @@ const queue = manualCriteria.filter(c => {
         console.error(`✗ Could not run assist-prompt.js — ${res.error.message}`);
         process.exit(1);
       }
+      // It prints its own reason when it cannot build a prompt (an empty
+      // urls.json, most likely). Sending someone off to fetch a draft that was
+      // never produced would be worse than the original failure.
+      if (res.status !== 0) {
+        console.log(`\nNo draft was produced, so there is nothing to take to Claude.`);
+        console.log(`Fix the above and run  npm run assist:prompt  — or start the`);
+        console.log(`questions without a draft:  npm run audit:manual`);
+        process.exitCode = 1;
+        return;
+      }
       console.log(`\nWhen you have the draft, come back and run:  npm run audit:manual`);
       console.log(`Nothing has been recorded yet — you answer every criterion here.`);
       return;
