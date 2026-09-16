@@ -20,6 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const { spawnSync } = require('child_process');
 const { criteria } = require('./criteria.json');
 
 const OUT_DIR = './audits/manual';
@@ -106,11 +107,6 @@ const queue = manualCriteria.filter(c => {
   console.log(`${Math.max(1, Math.round(queue.length * 0.5))}–${Math.max(2, Math.round(queue.length * 1.5))} minutes if you know the site, longer where you have to go and test.`);
   console.log(`\nYou will need: a keyboard, browser zoom, and a screen reader for some`);
   console.log(`questions (NVDA on Windows/Chrome, or VoiceOver on Mac/Safari).`);
-  if (queue.length > 20) {
-    console.log(`\nTip: npm run assist:prompt drafts the ones an agent can assess (link`);
-    console.log(`purpose, alt text, heading quality) from the scan results, so you arrive`);
-    console.log(`at those with evidence in hand. You still answer them here.`);
-  }
   console.log(`\nEvery answer is saved immediately. Press q whenever you want to stop —`);
   console.log(`next time it picks up exactly where you left off.`);
   console.log(`\nAnswers:`);
@@ -120,6 +116,36 @@ const queue = manualCriteria.filter(c => {
   console.log(`  ?  I cannot judge this — flags it for someone with a11y expertise`);
   console.log(`  s  skip for now — ask me again next time`);
   console.log(`  q  save and quit\n`);
+
+  // Offered rather than mentioned: this is the moment the decision is actually
+  // made, and a tip printed above the fold is a tip nobody acts on. Only on a
+  // first pass — on a resume or a top-up the draft is already done or not wanted.
+  const fresh = p.answered === 0 && queue.length > 20;
+  if (fresh && process.stdin.isTTY && process.stdout.isTTY) {
+    console.log(`Before you start: Claude can draft the ones it can genuinely assess —`);
+    console.log(`link purpose in context, whether alt text says anything useful, heading`);
+    console.log(`quality — working from what your scans already found. You still answer`);
+    console.log(`every question here; it just means arriving with evidence instead of a`);
+    console.log(`blank page. It needs a Claude session with browser access.`);
+
+    let want;
+    while (true) {
+      want = (await ask(`\nPrint that prompt now instead of starting? [Y/n]: `)).toLowerCase();
+      if (['', 'y', 'yes', 'n', 'no'].includes(want)) break;
+      console.log('  Please answer y or n.');
+    }
+    if (want === '' || want === 'y' || want === 'yes') {
+      if (!stdinClosed) rl.close();
+      const res = spawnSync(process.execPath, ['assist-prompt.js'], { stdio: 'inherit' });
+      if (res.error) {
+        console.error(`✗ Could not run assist-prompt.js — ${res.error.message}`);
+        process.exit(1);
+      }
+      console.log(`\nWhen you have the draft, come back and run:  npm run audit:manual`);
+      console.log(`Nothing has been recorded yet — you answer every criterion here.`);
+      return;
+    }
+  }
 
   if (!store.testedBy) {
     store.testedBy = await ask('Your name (recorded as "Tested By"): ') || 'unknown';

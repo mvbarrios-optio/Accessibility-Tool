@@ -82,14 +82,14 @@ bulk of the audit. It asks one question at a time and saves after every answer, 
 stop and resume; `npm start` offers to start it for you.
 
 ```bash
-npm run assist:prompt     # optional: have Claude draft the ones it can assess
-npm run audit:manual      # you answer, using that draft as input
+npm run audit:manual
 ```
 
-`assist:prompt` is worth running first on a site of any size — it drafts link purpose,
-alt-text quality, heading quality and similar from the scan results, so you arrive at
-those questions with evidence rather than a blank page. It never answers for you; see
-"Drafting the judgement checks with Claude" below.
+On a first pass it offers to print the Claude draft prompt before starting, since arriving
+with evidence beats arriving at a blank page — Enter takes the offer, `n` starts the
+questions. It drafts link purpose, alt-text quality, heading quality and similar from the
+scan results, and never answers for you; see "Drafting the judgement checks with Claude"
+below. `npm run assist:prompt` prints it any time.
 
 **5. Build the findings report:**
 

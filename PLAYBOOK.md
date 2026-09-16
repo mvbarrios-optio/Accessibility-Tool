@@ -191,9 +191,11 @@ DevTools, save the JSON it copies as `audits/raw/<page>-snippet.json`.
 ### 11. Manual audit **(you, keyboard + screen reader)**
 
 ```
-npm run assist:prompt     # optional, first — see below
 npm run audit:manual      # resumable; npm run audit:manual:list shows progress
 ```
+
+On a first pass this offers to print the Claude draft prompt before starting (`npm run
+assist:prompt` prints it any time).
 
 `assist:prompt` prints a prompt for a Claude session with browser access that drafts the
 criteria an agent can assess from page content — link purpose, alt-text quality, heading

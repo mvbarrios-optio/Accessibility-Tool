@@ -219,11 +219,22 @@ If the site has no login and no special states, you can skip this step.
 ## Step 4 — guided manual audit (terminal + keyboard + screen reader)
 
 ```bash
-npm run assist:prompt     # optional, first: Claude drafts what it can assess
-npm run audit:manual      # you answer
+npm run audit:manual
 ```
 
-On a site of any size, run `assist:prompt` first. It prints a prompt for a Claude session
+The first time you run it — before any answers exist and with more than 20 criteria
+outstanding — it offers to print the Claude draft prompt instead of starting, and Enter
+takes that offer:
+
+```
+Print that prompt now instead of starting? [Y/n]
+```
+
+Say yes, take the prompt to a Claude session with browser access, then run
+`npm run audit:manual` again and answer with the draft beside you. Say no and it starts
+the questions straight away. On a resume it does not ask again.
+
+`npm run assist:prompt` prints the same thing any time. It prints a prompt for a Claude session
 with browser access that drafts the criteria an agent can genuinely judge — link purpose in
 context, whether alt text says anything useful, heading quality — starting from what your
 scans already found. You get a draft with evidence and a confidence per criterion, then
