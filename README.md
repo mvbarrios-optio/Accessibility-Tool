@@ -85,11 +85,12 @@ stop and resume; `npm start` offers to start it for you.
 npm run audit:manual
 ```
 
-On a first pass it offers to print the Claude draft prompt before starting, since arriving
-with evidence beats arriving at a blank page — Enter takes the offer, `n` starts the
-questions. It drafts link purpose, alt-text quality, heading quality and similar from the
-scan results, and never answers for you; see "Drafting the judgement checks with Claude"
-below. `npm run assist:prompt` prints it any time.
+On a first pass it offers the Claude draft first. Enter prints the prompt and then carries
+on with the 12 criteria Claude can never answer, so you work on those while the draft is
+produced; the remaining 42 are asked on the next run, with the draft in hand. `n` starts
+all 54 straight away. It drafts link purpose, alt-text quality, heading quality and
+similar from the scan results, and never answers for you — see "Drafting the judgement
+checks with Claude" below. `npm run assist:prompt` prints it any time.
 
 **5. Build the findings report:**
 

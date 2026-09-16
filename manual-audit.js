@@ -73,7 +73,7 @@ if (LIST_ONLY) {
 // ── Interactive session ──────────────────────────────────────────────────────
 // Own line buffer instead of rl.question(): keeps piped/scripted input from
 // losing lines between questions, and resolves '' cleanly when stdin ends.
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY });
+let rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY });
 let stdinClosed = false;
 const bufferedLines = [];
 const waitingAsks = [];
@@ -85,6 +85,23 @@ rl.on('close', () => {
   stdinClosed = true;
   while (waitingAsks.length) waitingAsks.shift()('');
 });
+// Handing stdin to a child closes this interface; the questions after it need a
+// fresh one, or every prompt would resolve to '' against a dead stream.
+function restartReadline() {
+  rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY });
+  stdinClosed = false;
+  bufferedLines.length = 0;
+  waitingAsks.length = 0;
+  rl.on('line', l => {
+    const w = waitingAsks.shift();
+    if (w) w(l.trim()); else bufferedLines.push(l.trim());
+  });
+  rl.on('close', () => {
+    stdinClosed = true;
+    while (waitingAsks.length) waitingAsks.shift()('');
+  });
+}
+
 function ask(q) {
   process.stdout.write(q);
   if (bufferedLines.length) { const a = bufferedLines.shift(); process.stdout.write(a + '\n'); return Promise.resolve(a); }
@@ -92,7 +109,7 @@ function ask(q) {
   return new Promise(res => waitingAsks.push(res));
 }
 
-const queue = manualCriteria.filter(c => {
+let queue = manualCriteria.filter(c => {
   if (onlyArg) return onlyArg.includes(c.sc);
   if (ASK_ALL) return true;
   return !store.entries[c.sc];
@@ -135,6 +152,8 @@ const queue = manualCriteria.filter(c => {
       console.log('  Please answer y or n.');
     }
     if (want === '' || want === 'y' || want === 'yes') {
+      // The prompt goes to stdout of a child that owns the terminal, so the
+      // readline has to let go and be rebuilt for the questions that follow.
       if (!stdinClosed) rl.close();
       const res = spawnSync(process.execPath, ['assist-prompt.js'], { stdio: 'inherit' });
       if (res.error) {
@@ -151,9 +170,25 @@ const queue = manualCriteria.filter(c => {
         process.exitCode = 1;
         return;
       }
-      console.log(`\nWhen you have the draft, come back and run:  npm run audit:manual`);
-      console.log(`Nothing has been recorded yet — you answer every criterion here.`);
-      return;
+
+      // Rather than stopping here and making the next run walk all 54 again,
+      // carry straight on with the ones the draft will never cover. The other
+      // criteria stay unanswered, so the next run picks up exactly those — the
+      // resume logic already does this, it just needed to not be thrown away.
+      const humanOnly = queue.filter(c => c.coverage.agent === 'no');
+      const drafted = queue.length - humanOnly.length;
+      queue = humanOnly;
+
+      console.log(`\n${'═'.repeat(72)}`);
+      console.log(`Take that prompt to Claude for ${drafted} of the ${drafted + humanOnly.length} criteria.`);
+      console.log(`${'═'.repeat(72)}`);
+      console.log(`Meanwhile, here are the ${humanOnly.length} it can never answer — a screen reader, a`);
+      console.log(`real device, human senses, or something it must not do. They need you`);
+      console.log(`either way, so there is no reason to wait for the draft to start them.`);
+      console.log(`\nPress q at any point to stop. When the draft is ready, run`);
+      console.log(`npm run audit:manual again and it will ask the remaining ${drafted}.`);
+
+      restartReadline();
     }
   }
 
