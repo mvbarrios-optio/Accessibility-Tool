@@ -16,9 +16,9 @@ being hidden behind a single browser. See "Browser engines" below.
 ## Quick start — from zero to a findings report
 
 Five steps, but only three commands you have to type: `npm run setup`, `npm start`, and
-the report at the end — `npm start` hands you the other two and names the optional ones. You need Node.js ≥ 18 and npm
-installed; nothing else. The toolkit asks for anything it needs, so nothing here requires
-flags or editing a file.
+the report at the end — `npm start` hands you the other two and names the optional ones.
+You need Node.js ≥ 18 and npm installed; nothing else. The toolkit asks for anything it
+needs, so nothing here requires flags or editing a file.
 
 **1. Set up, once per machine:**
 
