@@ -9,8 +9,12 @@ If you only remember three commands, remember these:
 ```bash
 npm run setup                                    # once per machine
 npm start                                        # asks for the site, then scans it
+npm run audit:manual                             # the questions only a person can answer
 npm run report:findings -- --label "Baseline"    # the report
 ```
+
+`npm start` offers to start the questions for you, and names the two optional helpers along
+the way: `npm run wave:prompt` and `npm run assist:prompt`.
 
 You do not need to edit any file or remember any option: `npm start` asks which site to
 check, finds its pages itself, and asks about anything it can't decide on its own.
@@ -218,6 +222,25 @@ If the site has no login and no special states, you can skip this step.
 npm run audit:manual
 ```
 
+The first time you run it — before any answers exist and with more than 20 criteria
+outstanding — it offers to print the Claude draft prompt instead of starting, and Enter
+takes that offer:
+
+```
+Print that prompt now instead of starting? [Y/n]
+```
+
+Say yes, take the prompt to a Claude session with browser access, then run
+`npm run audit:manual` again and answer with the draft beside you. Say no and it starts
+the questions straight away. On a resume it does not ask again.
+
+`npm run assist:prompt` prints the same thing any time. It prints a prompt for a Claude session
+with browser access that drafts the criteria an agent can genuinely judge — link purpose in
+context, whether alt text says anything useful, heading quality — starting from what your
+scans already found. You get a draft with evidence and a confidence per criterion, then
+answer here. It deliberately leaves out the 12 criteria needing a screen reader, a real
+device or human senses.
+
 - It shows you each criterion in turn, numbered `[12/54]` so you know how far along you
   are: what it means, what the automated tools already covered, and the concrete steps to
   test it by hand.
@@ -225,6 +248,11 @@ npm run audit:manual
   remember the command.
 - You answer with one letter: `p` pass · `f` fail · `n` not applicable ·
   **`?` I can't judge this** · `s` skip for now · `q` save and quit.
+- **Stuck on a lot of them?** `npm run assist:prompt` prints a prompt for a Claude session
+  with browser access that drafts the ones an agent can genuinely assess — link purpose,
+  alt text, heading quality, labels — starting from what the scans already found. It gives
+  you a draft with evidence and a confidence per criterion; you still answer here. It
+  deliberately leaves out the 12 that need a screen reader, a real device or human senses.
 - **Use `?` freely.** Plenty of these criteria need real accessibility knowledge — live
   captions, flashing content, whether alt text is actually meaningful. `?` records that a
   person looked and could not decide, and asks what blocked you. The report then lists it

@@ -214,6 +214,8 @@ async function main() {
   // Offer the rest of the audit rather than leaving two more commands to find.
   if (!interactive) {
     console.log('\nNext steps — these two are what make the audit complete:');
+    console.log('  0. npm run assist:prompt                optional: draft the judgement');
+    console.log('                                          checks with Claude first');
     console.log('  1. npm run audit:manual                 the keyboard / screen-reader /');
     console.log('                                          judgement questions (saves as you go)');
     console.log('  2. npm run report:findings -- --label "Baseline"');
@@ -228,8 +230,13 @@ async function main() {
   // place, and printPrompt also writes it to a file so scroll cannot lose it.
   printPrompt(urls, process.cwd());
 
+  console.log('\nThe manual questions are what make the audit complete — 54 criteria that');
+  console.log('no tool can settle. To get a head start on the ones an agent can assess');
+  console.log('(link purpose, alt text, heading quality), run this first in another window:');
+  console.log('  npm run assist:prompt        drafts them with Claude; you still answer');
+
   const doManual = await askYesNo(
-    '\nThe manual questions are what make the audit complete. Start them now?', true);
+    '\nStart the manual questions now?', true);
   if (doManual) {
     release();
     const res = spawnSync(process.execPath, ['manual-audit.js'], { stdio: 'inherit' });
@@ -239,6 +246,7 @@ async function main() {
   }
 
   console.log('\nWhen you are ready, the rest of the audit is:');
+  console.log('  npm run assist:prompt                   optional: draft the judgement checks');
   console.log('  npm run audit:manual                    the questions (resumable)');
   console.log('  npm run report:findings -- --label "Baseline"   the report');
   console.log('  npm run wave:prompt                     optional: the WAVE pass prompt\n');

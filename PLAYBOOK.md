@@ -159,6 +159,12 @@ Every distinct issue found needs its own row in your change log or issue tracker
 page, component, and WCAG criterion. The exported reports are the evidence a row points
 to, not a substitute for the row. Do this per finding, not once at the end.
 
+**Evidence screenshots** are optional and yours to organise, but the manual audit records
+whatever filename you give it and prints it in the findings report, so it only helps if the
+name identifies the finding. `<page>-<criterion>.png` — `contact-2.4.7.png` — is enough:
+it sorts sensibly and matches a report row without opening it. Keep them wherever the rest
+of the pass's evidence lives.
+
 ## Closing the manual gap and producing the findings report
 
 The steps above produce the *automated-tool* evidence. These four close the remaining
@@ -187,6 +193,17 @@ DevTools, save the JSON it copies as `audits/raw/<page>-snippet.json`.
 ```
 npm run audit:manual      # resumable; npm run audit:manual:list shows progress
 ```
+
+On a first pass this offers to print the Claude draft prompt before starting (`npm run
+assist:prompt` prints it any time).
+
+`assist:prompt` prints a prompt for a Claude session with browser access that drafts the
+criteria an agent can assess from page content — link purpose, alt-text quality, heading
+quality, labels — starting from the scan results rather than from nothing. It produces a
+draft with evidence and a confidence per criterion; you still record every answer below. It
+excludes the 12 criteria that need a screen reader, a real device, human senses, or an
+action an agent must not take, and those must be answered by a person. For an evidence
+pack, note in the record that a draft was used — the answers are still yours.
 Walks every criterion that needs human judgement, with the test steps inline. Failures
 recorded here (pages, component, severity, evidence filename) flow straight into the
 findings report. This step is what makes the audit *complete*.

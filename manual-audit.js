@@ -20,6 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const { spawnSync } = require('child_process');
 const { criteria } = require('./criteria.json');
 
 const OUT_DIR = './audits/manual';
@@ -116,6 +117,36 @@ const queue = manualCriteria.filter(c => {
   console.log(`  s  skip for now — ask me again next time`);
   console.log(`  q  save and quit\n`);
 
+  // Offered rather than mentioned: this is the moment the decision is actually
+  // made, and a tip printed above the fold is a tip nobody acts on. Only on a
+  // first pass — on a resume or a top-up the draft is already done or not wanted.
+  const fresh = p.answered === 0 && queue.length > 20;
+  if (fresh && process.stdin.isTTY && process.stdout.isTTY) {
+    console.log(`Before you start: Claude can draft the ones it can genuinely assess —`);
+    console.log(`link purpose in context, whether alt text says anything useful, heading`);
+    console.log(`quality — working from what your scans already found. You still answer`);
+    console.log(`every question here; it just means arriving with evidence instead of a`);
+    console.log(`blank page. It needs a Claude session with browser access.`);
+
+    let want;
+    while (true) {
+      want = (await ask(`\nPrint that prompt now instead of starting? [Y/n]: `)).toLowerCase();
+      if (['', 'y', 'yes', 'n', 'no'].includes(want)) break;
+      console.log('  Please answer y or n.');
+    }
+    if (want === '' || want === 'y' || want === 'yes') {
+      if (!stdinClosed) rl.close();
+      const res = spawnSync(process.execPath, ['assist-prompt.js'], { stdio: 'inherit' });
+      if (res.error) {
+        console.error(`✗ Could not run assist-prompt.js — ${res.error.message}`);
+        process.exit(1);
+      }
+      console.log(`\nWhen you have the draft, come back and run:  npm run audit:manual`);
+      console.log(`Nothing has been recorded yet — you answer every criterion here.`);
+      return;
+    }
+  }
+
   if (!store.testedBy) {
     store.testedBy = await ask('Your name (recorded as "Tested By"): ') || 'unknown';
     save();
@@ -162,7 +193,10 @@ const queue = manualCriteria.filter(c => {
       entry.issue = await ask('   What is wrong (one line, this goes in the report): ');
       const sev = (await ask('   Severity [h]igh / [m]edium / [l]ow: ')).toLowerCase();
       entry.severity = sev.startsWith('h') ? 'high' : sev.startsWith('l') ? 'low' : 'medium';
-      entry.evidence = await ask('   Evidence file, if any (screenshot per naming convention, Enter to skip): ');
+      // Self-explanatory rather than pointing at a convention: the phrase this
+      // replaced ("per naming convention") referred to one defined in the brief
+      // of the project this toolkit came from, which no longer exists here.
+      entry.evidence = await ask('   Evidence file, if any (e.g. "contact-2.4.7.png", Enter to skip): ');
     } else if (answer === '?') {
       console.log(`   Recorded as needing an expert — it stays an open gap in the report.`);
       const note = await ask('   What stopped you deciding? (optional, helps whoever picks it up): ');

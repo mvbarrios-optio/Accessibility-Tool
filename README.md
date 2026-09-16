@@ -16,9 +16,9 @@ being hidden behind a single browser. See "Browser engines" below.
 ## Quick start — from zero to a findings report
 
 Five steps, but only three commands you have to type: `npm run setup`, `npm start`, and
-the report at the end — `npm start` hands you the other two. You need Node.js ≥ 18 and npm
-installed; nothing else. The toolkit asks for anything it needs, so nothing here requires
-flags or editing a file.
+the report at the end — `npm start` hands you the other two and names the optional ones.
+You need Node.js ≥ 18 and npm installed; nothing else. The toolkit asks for anything it
+needs, so nothing here requires flags or editing a file.
 
 **1. Set up, once per machine:**
 
@@ -77,13 +77,19 @@ prompt to paste into a Claude session with browser access, and saves it to
 `audits/reports/wave-prompt.txt`. Print it again any time with `npm run wave:prompt`. See
 "WAVE scan" below for what it adds and what it costs.
 
-**4. Answer the human-judgement checks** (keyboard, screen reader, judgement calls — it
-asks one question at a time, and saves after every answer so you can stop and resume).
-`npm start` offers to start these for you; to run them yourself:
+**4. Answer the human-judgement checks** — 54 criteria no tool can settle. This is the
+bulk of the audit. It asks one question at a time and saves after every answer, so you can
+stop and resume; `npm start` offers to start it for you.
 
 ```bash
 npm run audit:manual
 ```
+
+On a first pass it offers to print the Claude draft prompt before starting, since arriving
+with evidence beats arriving at a blank page — Enter takes the offer, `n` starts the
+questions. It drafts link purpose, alt-text quality, heading quality and similar from the
+scan results, and never answers for you; see "Drafting the judgement checks with Claude"
+below. `npm run assist:prompt` prints it any time.
 
 **5. Build the findings report:**
 
@@ -110,6 +116,7 @@ a11y-audit-toolkit/
   find-pages.js              `npm run urls:find` — builds urls.json from a sitemap, or by
                              following the site's links when there is no sitemap
   wave-prompt.js             `npm run wave:prompt` — prints the paste-ready WAVE prompt
+  assist-prompt.js           `npm run assist:prompt` — has Claude draft the judgement checks
   compare-reports.js         `npm run report:compare` — baseline vs retest: what was fixed
   ask.js                     Shared terminal prompts (safe in CI: never blocks on input)
   run-scans.js               `npm start` — runs axe + Lighthouse + extra checks in one go
@@ -476,6 +483,48 @@ separate "descriptions" call for any newly-seen issue type avoids it. Since WAVE
 descriptions are fixed boilerplate (not per-page), you only need to fetch a description
 once per unique category/title, not once per page.
 
+## Drafting the judgement checks with Claude
+
+The manual pass is 54 criteria and the bottleneck of the audit. Part of it is genuinely
+text and vision work — is this alt text useful, does this link make sense in its context,
+are these headings descriptive — which an agent with browser access does well. Part of it
+is not.
+
+```bash
+npm run assist:prompt
+```
+
+prints a prompt for a Claude session with browser access, carrying the page list, the
+criteria, and **what the scans already found** (WAVE's alerts, the extra-checks that
+flagged, the criteria already failing) so the draft starts from evidence instead of
+re-deriving it. Saved to `audits/reports/assist-prompt.txt`.
+
+It asks for a draft per criterion — proposed answer, confidence, the evidence actually
+looked at, and what a person still has to settle — and it tells the model not to answer
+from the DOM where the DOM isn't the question, not to submit real forms, not to attempt
+logins or CAPTCHAs, and that "I could not tell" is a useful answer.
+
+**It produces a draft, not answers.** Nothing writes to `audits/manual/`; you still record
+each result in `npm run audit:manual`. That is the same line the rest of the toolkit
+holds — `generate-report.js` refuses to call a criterion "pass" on automation alone, and a
+model's opinion is not a different kind of evidence just because it reads more like one.
+
+`criteria.json` carries the split as `coverage.agent`, and the command reports it:
+
+| | Criteria | Meaning |
+|---|---|---|
+| `good` | 15 | Reading content, DOM or pixels decides it |
+| `partial` | 27 | Can be triaged or measured, but a person decides |
+| `no` | 12 | Never included — needs a screen reader, a real device, human senses, or an action Claude must not take |
+
+The 12 excluded are 1.2.1–1.2.5 (media), 1.3.4 (orientation), 2.3.1 (flashes), 2.5.2 and
+2.5.4 (pointer and motion), 3.3.4 (error prevention for legal/financial), 3.3.8
+(authentication) and 4.1.3 (status messages). A model's opinion on whether captions are
+accurate, or whether content flashes above threshold, is not evidence.
+
+`--only=good` narrows to the 15 it can actually decide; `--criteria=2.4.4,1.1.1` picks
+specific ones, and warns if you name one from the excluded set.
+
 ## Comparing a baseline with a retest
 
 Finding problems is the baseline's job; proving they are gone is the retest's. Keep each
@@ -550,8 +599,8 @@ COVERAGE.md            The per-criterion map of which tool verifies what.
 ```
 
 npm scripts: `setup`, `urls:find`, `start`, `scan:extra`, `scan:extra:fast`,
-`scan:filter`, `wave:prompt`, `audit:manual`, `audit:manual:list`, `report:findings`,
-`report:compare`.
+`scan:filter`, `wave:prompt`, `assist:prompt`, `audit:manual`, `audit:manual:list`,
+`report:findings`, `report:compare`.
 
 `extra-checks.js` is Chromium-only by design (layout probes + tab-order simulation);
 engine-specific accessibility-tree differences are already covered by the multi-engine axe
