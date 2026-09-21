@@ -229,6 +229,11 @@ outstanding — it offers the Claude draft first, and Enter takes the offer:
 Print that prompt now instead of starting? [Y/n]
 ```
 
+Claude writes its draft as two files into `audits/reports/` — `assist-draft.md` for you to
+read, and `assist-draft.json`, which `npm run audit:manual` picks up on its own and shows
+under each question it covers, so you are not flipping between windows. It is a proposal:
+you still type every answer.
+
 **Yes** prints the prompt and then carries straight on with the **12 criteria Claude can
 never answer** — the ones needing a screen reader, a real device or human senses. Those
 need you either way, so there is no reason to sit idle while the draft is being produced.

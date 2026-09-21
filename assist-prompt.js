@@ -147,6 +147,8 @@ const criteriaBlock = selected.map(c => {
     + conf;
 }).join('\n');
 
+const cwd = process.cwd();
+
 const prompt = `I am running a WCAG 2.2 Level A/AA accessibility audit and need help with the
 parts that need judgement rather than a tool. You have browser access.
 
@@ -154,15 +156,40 @@ Pages in scope:
 ${urls.map(u => `  ${u}`).join('\n')}
 
 ${evidence.length ? `What the automated scans already found:\n${evidence.map(l => l && !l.startsWith(' ') ? l : l).join('\n')}\n` : ''}
-For each criterion below: visit the pages, gather the evidence, and give me a DRAFT
-assessment. Use this shape, one block per criterion:
+Visit the pages, gather the evidence, and write me a DRAFT assessment as TWO FILES
+saved into ${cwd}/audits/reports/ — not as a wall of chat output, since I will be
+reading this beside a terminal while I answer the criteria one at a time.
 
-  <SC> <name>
-  Proposed: pass | fail | n/a | needs-a-person
-  Confidence: high | medium | low
-  Evidence: what you actually looked at — page, selector, the text or value you saw
-  If fail: which pages, which component, what is wrong, and the fix
-  Still needs a person: what you could not settle, and why
+FILE 1 — assist-draft.md, for me to read:
+
+  A summary table first (SC | criterion | proposed | confidence), every criterion
+  in the order listed below, so I can see the whole picture at a glance. Then one
+  section per criterion with the detail: what you looked at, the evidence quoted,
+  the fix if it fails, and what is left for a person.
+
+FILE 2 — assist-draft.json, so my tooling can show your proposal next to each
+question as it asks me. Exactly this shape, nothing else:
+
+  {
+    "generatedAt": "<ISO timestamp>",
+    "criteria": [
+      {
+        "sc": "2.4.4",
+        "proposed": "pass" | "fail" | "na" | "needs-a-person",
+        "confidence": "high" | "medium" | "low",
+        "evidence": "one or two sentences, quoting what you actually saw",
+        "pages": "which pages, or 'all'",
+        "component": "where — e.g. footer link list",
+        "issue": "one line: what is wrong (only when proposed is fail)",
+        "stillNeedsAPerson": "what you could not settle, and why — '' if nothing"
+      }
+    ]
+  }
+
+Use the exact SC numbers as listed below. Include every criterion you were asked
+about, including the ones you could not settle — "needs-a-person" with a reason
+is a result, not a gap. If you cannot write files, give me the JSON in one block
+and the report in another, and say so.
 
 Rules I need you to hold to:
 
@@ -186,9 +213,10 @@ Rules I need you to hold to:
 Criteria to assess:
 
 ${criteriaBlock}
-When you are done, list anything you marked needs-a-person, so I know what is left.
+When you are done, tell me the two file paths and list anything you marked
+needs-a-person, so I know what is left.
 
-I will record the answers myself — this is a draft to work from, not the audit.`;
+I will record every answer myself — this is a draft to work from, not the audit.`;
 
 // ── Output ───────────────────────────────────────────────────────────────────
 fs.mkdirSync(REPORTS_DIR, { recursive: true });

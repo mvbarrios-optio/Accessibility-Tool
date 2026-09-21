@@ -500,10 +500,27 @@ criteria, and **what the scans already found** (WAVE's alerts, the extra-checks 
 flagged, the criteria already failing) so the draft starts from evidence instead of
 re-deriving it. Saved to `audits/reports/assist-prompt.txt`.
 
-It asks for a draft per criterion — proposed answer, confidence, the evidence actually
-looked at, and what a person still has to settle — and it tells the model not to answer
-from the DOM where the DOM isn't the question, not to submit real forms, not to attempt
-logins or CAPTCHAs, and that "I could not tell" is a useful answer.
+It asks for **two files** rather than chat output, since the draft is read beside a
+terminal while you answer the criteria one at a time:
+
+- `audits/reports/assist-draft.md` — a summary table then the detail per criterion, for you.
+- `audits/reports/assist-draft.json` — the same in a fixed shape, so `manual-audit.js`
+  picks it up automatically and shows the proposal **under the question it belongs to**:
+
+```
+   ── Claude's draft: FAIL (high confidence)
+      evidence: Three links read 'Read more' with no context: .insights_card a …
+      pages: /insights, /
+      component: insight cards
+      — a proposal, not an answer. Check it before agreeing.
+```
+
+No second window, and nothing is pre-filled — you still type the answer. A missing or
+unreadable draft file is a shrug, not an error: the questions run exactly as before.
+
+The prompt tells the model not to answer from the DOM where the DOM isn't the question,
+not to submit real forms, not to attempt logins or CAPTCHAs, and that "I could not tell"
+is a useful answer.
 
 **It produces a draft, not answers.** Nothing writes to `audits/manual/`; you still record
 each result in `npm run audit:manual`. That is the same line the rest of the toolkit

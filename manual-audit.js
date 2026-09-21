@@ -24,6 +24,7 @@ const { spawnSync } = require('child_process');
 const { criteria } = require('./criteria.json');
 
 const OUT_DIR = './audits/manual';
+const DRAFT_FILE = './audits/reports/assist-draft.json';
 const OUT_FILE = path.join(OUT_DIR, 'manual-results.json');
 
 const args = process.argv.slice(2);
@@ -49,6 +50,20 @@ function save() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   store.updatedAt = new Date().toISOString();
   fs.writeFileSync(OUT_FILE, JSON.stringify(store, null, 2));
+}
+
+// Claude's draft, if assist-prompt.js was used and the session wrote the file.
+// Shown beside the question it belongs to — reading it here beats keeping a
+// second window open, and it stays a proposal: nothing is pre-filled.
+let draft = {};
+if (fs.existsSync(DRAFT_FILE)) {
+  try {
+    const d = JSON.parse(fs.readFileSync(DRAFT_FILE, 'utf8'));
+    for (const e of d.criteria || []) if (e && e.sc) draft[e.sc] = e;
+  } catch (err) {
+    console.error(`⚠ Could not read ${DRAFT_FILE} — ${err.message}`);
+    console.error(`  Carrying on without the draft.`);
+  }
 }
 
 function progress() {
@@ -124,6 +139,11 @@ let queue = manualCriteria.filter(c => {
   console.log(`${Math.max(1, Math.round(queue.length * 0.5))}–${Math.max(2, Math.round(queue.length * 1.5))} minutes if you know the site, longer where you have to go and test.`);
   console.log(`\nYou will need: a keyboard, browser zoom, and a screen reader for some`);
   console.log(`questions (NVDA on Windows/Chrome, or VoiceOver on Mac/Safari).`);
+  if (Object.keys(draft).length) {
+    console.log(`\nClaude's draft is loaded (${Object.keys(draft).length} criteria from ${DRAFT_FILE}).`);
+    console.log(`Its proposal shows under each question it covers. Check it — agreeing`);
+    console.log(`without looking is the same guessed pass you would have made anyway.`);
+  }
   console.log(`\nEvery answer is saved immediately. Press q whenever you want to stop —`);
   console.log(`next time it picks up exactly where you left off.`);
   console.log(`\nAnswers:`);
@@ -213,6 +233,20 @@ let queue = manualCriteria.filter(c => {
     console.log('   How to test:');
     for (const step of c.manualSteps) console.log(`     • ${step}`);
     if (prev) console.log(`   (previously: ${prev.result.toUpperCase()}${prev.issue ? ' — ' + prev.issue : ''})`);
+
+    const d = draft[c.sc];
+    if (d) {
+      const conf = d.confidence ? ` (${d.confidence} confidence)` : '';
+      console.log(`   ── Claude's draft: ${String(d.proposed || '?').toUpperCase()}${conf}`);
+      if (d.evidence) console.log(`      evidence: ${d.evidence}`);
+      if (d.proposed === 'fail') {
+        if (d.pages) console.log(`      pages: ${d.pages}`);
+        if (d.component) console.log(`      component: ${d.component}`);
+        if (d.issue) console.log(`      issue: ${d.issue}`);
+      }
+      if (d.stillNeedsAPerson) console.log(`      still needs you: ${d.stillNeedsAPerson}`);
+      console.log(`      — a proposal, not an answer. Check it before agreeing.`);
+    }
 
     let answer;
     while (true) {
