@@ -11,7 +11,7 @@
 // step is never reported as a pass — the command exits non-zero.
 const { spawnSync } = require('child_process');
 const fs = require('fs');
-const { interactive, ask, askYesNo, close, release } = require('./ask');
+const { interactive, ask, askYesNo, askChoice, close, release } = require('./ask');
 const { printPrompt } = require('./wave-prompt');
 
 const args = process.argv.slice(2);
@@ -230,27 +230,37 @@ async function main() {
   // place, and printPrompt also writes it to a file so scroll cannot lose it.
   printPrompt(urls, process.cwd());
 
-  console.log('\nThe manual questions are what make the audit complete — 54 criteria that');
-  console.log('no tool can settle. To get a head start on the ones an agent can assess');
-  console.log('(link purpose, alt text, heading quality), run this first in another window:');
-  console.log('  npm run assist:prompt        drafts them with Claude; you still answer');
+  console.log('\nWhat is left is the manual pass: 54 criteria no tool can settle.');
 
-  const doManual = await askYesNo(
-    '\nStart the manual questions now?', true);
-  if (doManual) {
-    release();
-    const res = spawnSync(process.execPath, ['manual-audit.js'], { stdio: 'inherit' });
-    if (res.error) console.error(`✗ Could not start the questions — ${res.error.message}`);
-    // manual-audit.js prints its own progress and the report command on exit.
+  // One decision, not two. Offering "start the questions?" and then, inside
+  // them, "actually, print a prompt instead?" made the user say yes to starting
+  // and immediately be asked whether they meant it.
+  const choice = await askChoice('\nHow do you want to handle them?', [
+    { label: 'Draft them with Claude first',
+      hint: 'prints a prompt for a Claude session with browser access, then works '
+        + 'through the 12 it can never answer while the draft is made' },
+    { label: 'Start all 54 questions now',
+      hint: 'no draft — straight into them' },
+    { label: 'Neither, I will come back',
+      hint: 'prints the commands and stops' }
+  ], 0);
+
+  if (choice === 2) {
+    console.log('\nWhen you are ready, the rest of the audit is:');
+    console.log('  npm run assist:prompt                   optional: draft the judgement checks');
+    console.log('  npm run audit:manual                    the questions (resumable)');
+    console.log('  npm run report:findings -- --label "Baseline"   the report');
+    console.log('  npm run wave:prompt                     optional: the WAVE pass prompt\n');
+    close();
     return;
   }
 
-  console.log('\nWhen you are ready, the rest of the audit is:');
-  console.log('  npm run assist:prompt                   optional: draft the judgement checks');
-  console.log('  npm run audit:manual                    the questions (resumable)');
-  console.log('  npm run report:findings -- --label "Baseline"   the report');
-  console.log('  npm run wave:prompt                     optional: the WAVE pass prompt\n');
-  close();
+  release();
+  const res = spawnSync(process.execPath,
+    ['manual-audit.js', choice === 0 ? '--draft-first' : '--no-draft'],
+    { stdio: 'inherit' });
+  if (res.error) console.error(`✗ Could not start the questions — ${res.error.message}`);
+  // manual-audit.js prints its own progress and the report command on exit.
 }
 
 main().catch(err => {

@@ -30,6 +30,9 @@ const OUT_FILE = path.join(OUT_DIR, 'manual-results.json');
 const args = process.argv.slice(2);
 const LIST_ONLY = args.includes('--list');
 const ASK_ALL = args.includes('--all');
+// Set when run-scans.js already asked; it must not ask the same thing again.
+const DRAFT_FIRST = args.includes('--draft-first');
+const NO_DRAFT = args.includes('--no-draft');
 const onlyArg = (() => {
   const i = args.findIndex(a => a === '--criteria' || a.startsWith('--criteria='));
   if (i === -1) return null;
@@ -158,15 +161,22 @@ let queue = manualCriteria.filter(c => {
   // made, and a tip printed above the fold is a tip nobody acts on. Only on a
   // first pass — on a resume or a top-up the draft is already done or not wanted.
   const fresh = p.answered === 0 && queue.length > 20;
-  if (fresh && process.stdin.isTTY && process.stdout.isTTY) {
-    console.log(`Before you start: Claude can draft the ones it can genuinely assess —`);
-    console.log(`link purpose in context, whether alt text says anything useful, heading`);
-    console.log(`quality — working from what your scans already found. You still answer`);
-    console.log(`every question here; it just means arriving with evidence instead of a`);
-    console.log(`blank page. It needs a Claude session with browser access.`);
+  const offerDraft = DRAFT_FIRST
+    || (!NO_DRAFT && fresh && process.stdin.isTTY && process.stdout.isTTY);
+  if (offerDraft) {
+    // Only when this is the first time the option is being put; run-scans.js has
+    // already explained it when it passes --draft-first.
+    if (!DRAFT_FIRST) {
+      console.log(`Before you start: Claude can draft the ones it can genuinely assess —`);
+      console.log(`link purpose in context, whether alt text says anything useful, heading`);
+      console.log(`quality — working from what your scans already found. You still answer`);
+      console.log(`every question here; it just means arriving with evidence instead of a`);
+      console.log(`blank page. It needs a Claude session with browser access.`);
+    }
 
-    let want;
-    while (true) {
+    // Already decided upstream, so do not ask twice.
+    let want = DRAFT_FIRST ? 'y' : '';
+    while (!DRAFT_FIRST) {
       want = (await ask(`\nPrint that prompt now instead of starting? [Y/n]: `)).toLowerCase();
       if (['', 'y', 'yes', 'n', 'no'].includes(want)) break;
       console.log('  Please answer y or n.');

@@ -55,8 +55,9 @@ target size…). It prints progress as it goes and ends with a summary of what p
 evidence and what didn't. The `audits/` folders are created for you.
 
 When the scans finish it hands you the next two things rather than leaving you to find
-them: it prints the WAVE prompt (step 3 below, optional) and then asks whether to start the
-manual questions (step 4). Answering yes there means you never type step 4's command.
+them: it prints the WAVE prompt (step 3 below, optional), then asks how to handle the
+manual pass (step 4) — draft it with Claude first, start all 54 now, or come back later.
+Either of the first two means you never type step 4's command.
 
 On later runs it reuses the saved list and goes straight to scanning. Useful variations:
 
@@ -85,10 +86,10 @@ stop and resume; `npm start` offers to start it for you.
 npm run audit:manual
 ```
 
-On a first pass it offers the Claude draft first. Enter prints the prompt and then carries
-on with the 12 criteria Claude can never answer, so you work on those while the draft is
-produced; the remaining 42 are asked on the next run, with the draft in hand. `n` starts
-all 54 straight away. It drafts link purpose, alt-text quality, heading quality and
+Run from `npm start` you have already chosen; run on its own, a first pass offers the
+Claude draft. Taking it prints the prompt and then carries on with the 12 criteria Claude
+can never answer, so you work on those while the draft is produced; the remaining 42 are
+asked on the next run, with the draft in hand. Declining starts all 54 straight away. It drafts link purpose, alt-text quality, heading quality and
 similar from the scan results, and never answers for you — see "Drafting the judgement
 checks with Claude" below. `npm run assist:prompt` prints it any time.
 
