@@ -83,7 +83,7 @@ pretend it's automated.
 - extra-checks.js contributes on **20** criteria — this is the layer axe/Lighthouse/WAVE were missing (reflow, zoom, text spacing, focus visibility, skip link, target size, consistency across pages, reduced motion…).
 - The console snippet contributes on **27** criteria, including states the crawler can't reach.
 - **21** criteria have no automated signal at all — manual-audit.js walks you through every one.
-- **54/55** criteria need a human decision to be marked Pass. generate-report.js refuses to call a criterion "pass" from automation alone (it shows AUTO-CLEAN instead) precisely so the audit can't quietly overstate coverage.
+- **54/55** criteria need a human decision to be marked Pass. generate-report.js will not call a criterion "pass" on anything but a person's answer, precisely so the audit can't quietly overstate coverage. Automated checks finding nothing show as AUTO-CLEAN; a criterion a person looked at but could not judge shows as NEEDS EXPERT; a proposal imported from Claude and not yet confirmed shows as DRAFTED. All three count as coverage gaps, none of them as passes.
 
 ## The complete verification recipe
 
@@ -94,8 +94,11 @@ pretend it's automated.
 4. `npm run assist:prompt` (optional) — has Claude draft the criteria an agent can assess
    from page content, starting from the scan results. A draft to work from, not answers:
    15 criteria it can decide, 27 it can only narrow, 12 it is never given.
-5. `npm run audit:manual` — guided answers for everything that needs eyes and ears
+5. `npm run draft:import` (optional) — records that draft as answers rather than making
+   you retype them. They show as DRAFTED and count as unverified until
+   `npm run audit:confirm` walks them; it buys time, not coverage.
+6. `npm run audit:manual` — guided answers for everything that needs eyes and ears
    (keyboard, screen reader, judgement calls). Answer `?` on anything you cannot judge:
    it is recorded as needing accessibility expertise and stays an open gap in the report,
    which is the honest outcome and far better than a guessed pass.
-6. `node generate-report.js` — merges the above, shows exactly what's still unverified, and produces the findings report for the fix guide
+7. `node generate-report.js` — merges the above, shows exactly what's still unverified, and produces the findings report for the fix guide

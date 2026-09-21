@@ -200,11 +200,24 @@ run once the draft exists (`npm run assist:prompt` prints it any time).
 
 `assist:prompt` prints a prompt for a Claude session with browser access that drafts the
 criteria an agent can assess from page content — link purpose, alt-text quality, heading
-quality, labels — starting from the scan results rather than from nothing. It produces a
-draft with evidence and a confidence per criterion; you still record every answer below. It
-excludes the 12 criteria that need a screen reader, a real device, human senses, or an
-action an agent must not take, and those must be answered by a person. For an evidence
-pack, note in the record that a draft was used — the answers are still yours.
+quality, labels — starting from the scan results rather than from nothing. It excludes the
+12 criteria that need a screen reader, a real device, human senses, or an action an agent
+must not take, and those must be answered by a person.
+
+Two ways to use what comes back, and the difference matters for an evidence pack:
+
+- **Read it while you answer.** Save its `assist-draft.json` into `audits/reports/` and
+  `manual-audit.js` shows each proposal under the question it belongs to. Every answer in
+  the record is then yours, given after looking.
+- **Import it** with `npm run draft:import`. The proposals become recorded answers marked
+  as unconfirmed, and appear in the report as 📝 DRAFTED — counted as a coverage gap, never
+  as passes. `npm run audit:confirm` converts them one at a time, keeping `draftedBy` and
+  `draftConfidence` on each entry.
+
+**A pass filed with DRAFTED rows still in it is not a completed audit**, and the report
+says so in its coverage warning. Either confirm them before filing, or state in the record
+that those criteria carry an unconfirmed draft — the entries themselves keep the evidence
+of where the answer came from, which is what makes that statement checkable.
 Walks every criterion that needs human judgement, with the test steps inline. Failures
 recorded here (pages, component, severity, evidence filename) flow straight into the
 findings report. This step is what makes the audit *complete*.
@@ -220,9 +233,9 @@ than a guess. Do not let a pass be recorded on anything nobody actually verified
 npm run report:findings -- --label "Baseline 2026-08"
 ```
 Writes `audits/reports/findings-report.md` + `findings.json`. The report shows all 55
-criteria with a status each — anything still ⬜ NOT TESTED, 🔎 AUTO-CLEAN or 🙋 NEEDS
-EXPERT means the audit isn't finished. The first two go back to step 11; NEEDS EXPERT rows
-need a specialist to answer them.
+criteria with a status each — anything still ⬜ NOT TESTED, 🔎 AUTO-CLEAN, 📝 DRAFTED or
+🙋 NEEDS EXPERT means the audit isn't finished. NOT TESTED and AUTO-CLEAN go back to step
+11; DRAFTED rows need `npm run audit:confirm`; NEEDS EXPERT rows need a specialist.
 
 ### 13. Fix guide **(Claude)**
 
