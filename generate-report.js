@@ -166,7 +166,11 @@ const rows = criteriaData.criteria.map(c => {
   const m = manualEntries[c.sc];
   const sources = [...(testedBy[c.sc] || [])];
   let status;
-  if (m && m.result === 'na') status = f.length ? 'fail' : 'na';
+  // A drafted answer nobody has confirmed is not verification, whatever it says.
+  // It gets its own status so the count of "verified" cannot quietly include it.
+  const drafted = m && m.source === 'draft' && !m.confirmed;
+  if (drafted) status = 'drafted';
+  else if (m && m.result === 'na') status = f.length ? 'fail' : 'na';
   else if (f.length) status = 'fail';
   // A person looked and could not judge it. Never a pass, and distinct from
   // 'auto-clean' (nobody looked yet) so the report can name who to hand it to.
@@ -183,7 +187,7 @@ const count = s => rows.filter(r => r.status === s).length;
 const totals = {
   fail: count('fail'), review: count('review'), pass: count('pass'),
   autoClean: count('auto-clean'), notTested: count('not-tested'), na: count('na'),
-  needsExpert: count('needs-expert')
+  needsExpert: count('needs-expert'), drafted: count('drafted')
 };
 
 // ── 6. Markdown report ───────────────────────────────────────────────────────
@@ -194,7 +198,7 @@ const SITE = flag('site') || siteGuess;
 const STATUS_LABEL = {
   fail: '❌ FAIL', review: '⚠️ REVIEW', pass: '✅ PASS',
   'auto-clean': '🔎 AUTO-CLEAN*', 'not-tested': '⬜ NOT TESTED', na: '➖ N/A',
-  'needs-expert': '🙋 NEEDS EXPERT'
+  'needs-expert': '🙋 NEEDS EXPERT', drafted: '📝 DRAFTED'
 };
 
 let md = `# Accessibility Findings Report — ${SITE}
@@ -220,10 +224,11 @@ let md = `# Accessibility Findings Report — ${SITE}
 | ✅ PASS | ${totals.pass} | Verified passing |
 | 🔎 AUTO-CLEAN* | ${totals.autoClean} | Automated checks found nothing, but the manual check is still pending — NOT yet a pass |
 | 🙋 NEEDS EXPERT | ${totals.needsExpert} | A person reviewed it but could not judge it — needs accessibility expertise |
+| 📝 DRAFTED | ${totals.drafted} | Proposed by Claude and imported, but nobody has confirmed it — NOT verified |
 | ⬜ NOT TESTED | ${totals.notTested} | No data from any source — coverage gap |
 | ➖ N/A | ${totals.na} | Marked not applicable in the manual audit |
 
-${(totals.autoClean || totals.notTested || totals.needsExpert) ? `> **Coverage warning:** ${totals.autoClean + totals.notTested + totals.needsExpert} criteria are not fully verified yet. Run \`npm run audit:manual\` to close the gap — an audit is not complete until every row is FAIL, PASS or N/A.${totals.needsExpert ? ` ${totals.needsExpert} of them were looked at but could not be judged without accessibility expertise; those are listed separately below.` : ''}\n` : '> Full coverage: every criterion has a definitive result.\n'}
+${(totals.autoClean || totals.notTested || totals.needsExpert || totals.drafted) ? `> **Coverage warning:** ${totals.autoClean + totals.notTested + totals.needsExpert + totals.drafted} criteria are not fully verified yet. Run \`npm run audit:manual\` to close the gap — an audit is not complete until every row is FAIL, PASS or N/A.${totals.needsExpert ? ` ${totals.needsExpert} of them were looked at but could not be judged without accessibility expertise; those are listed separately below.` : ''}${totals.drafted ? ` ${totals.drafted} carry a drafted answer from Claude that nobody has confirmed — run \`npm run audit:manual -- --confirm\` to turn those into real answers.` : ''}\n` : '> Full coverage: every criterion has a definitive result.\n'}
 ## Checklist — all 55 criteria
 
 | SC | Criterion | Level | Status | Verified by |
@@ -295,6 +300,38 @@ if (expertRows.length) {
   }
 }
 
+// Drafted-but-unconfirmed: a handover list of its own, since the fastest way to
+// close real coverage is usually to read these rather than start from nothing.
+const draftedRows = rows.filter(r => r.status === 'drafted');
+if (draftedRows.length) {
+  md += `\n## Drafted, not confirmed (${draftedRows.length})\n\n`;
+  md += `Claude proposed these and they were imported; nobody has checked them. They are `
+    + `not passes and not failures of record — confirm them with \`npm run audit:manual -- --confirm\`.\n\n`;
+  md += `| SC | Criterion | Proposed | Confidence |\n|---|---|---|---|\n`;
+  for (const r of draftedRows) {
+    md += `| ${r.sc} | ${r.name} | ${String(r.manual.result).toUpperCase()} | ${r.manual.confidence || '?'} |\n`;
+  }
+
+  // The ones drafted as failures carry detail worth acting on before anyone gets
+  // round to confirming them — withholding it would make the draft useless.
+  const draftedFails = draftedRows.filter(r => r.manual.result === 'fail');
+  if (draftedFails.length) {
+    md += `\n### Drafted as failing (${draftedFails.length}) — unconfirmed\n\n`;
+    for (const r of draftedFails) {
+      const m = r.manual;
+      md += `- **${r.sc} ${r.name}** · \`${m.pages || '?'}\`${m.component ? ` · ${m.component}` : ''}\n`;
+      md += `  - ${m.issue || m.note || '(no detail)'}\n`;
+      if (m.note && m.issue && m.note !== m.issue) md += `  - evidence: ${m.note}\n`;
+      md += `  - drafted at ${m.confidence || '?'} confidence — confirm before treating it as a finding of record\n`;
+    }
+  }
+  const low = draftedRows.filter(r => (r.manual.confidence || '') === 'low');
+  if (low.length) {
+    md += `\n${low.length} of them were drafted at low confidence — read those first: `
+      + `${low.map(r => r.sc).join(', ')}.\n`;
+  }
+}
+
 // Lighthouse annex
 if (lhScores.length) {
   md += `\n## Annex: Lighthouse accessibility scores (Chromium)\n\n| Page | Score |\n|---|---|\n`;
@@ -343,10 +380,13 @@ fs.writeFileSync(jsonFile, JSON.stringify({
 }, null, 2));
 
 console.log(`findings-report.md — ${SITE} — ${LABEL}`);
-console.log(`  ❌ fail: ${totals.fail}   ⚠️ review: ${totals.review}   ✅ pass: ${totals.pass}   🔎 auto-clean: ${totals.autoClean}   🙋 needs expert: ${totals.needsExpert}   ⬜ not tested: ${totals.notTested}   ➖ n/a: ${totals.na}`);
+console.log(`  ❌ fail: ${totals.fail}   ⚠️ review: ${totals.review}   ✅ pass: ${totals.pass}   📝 drafted: ${totals.drafted}   🔎 auto-clean: ${totals.autoClean}   🙋 needs expert: ${totals.needsExpert}   ⬜ not tested: ${totals.notTested}   ➖ n/a: ${totals.na}`);
 console.log(`\nWritten:\n  ${mdFile}\n  ${jsonFile}`);
-if (totals.autoClean + totals.notTested + totals.needsExpert > 0) {
-  console.log(`\n⚠ ${totals.autoClean + totals.notTested + totals.needsExpert} criteria still unverified — run: npm run audit:manual`);
+if (totals.autoClean + totals.notTested + totals.needsExpert + totals.drafted > 0) {
+  console.log(`\n⚠ ${totals.autoClean + totals.notTested + totals.needsExpert + totals.drafted} criteria still unverified — run: npm run audit:manual`);
+  if (totals.drafted) {
+    console.log(`  ${totals.drafted} carry an unconfirmed draft — npm run audit:manual -- --confirm`);
+  }
   if (totals.needsExpert) {
     console.log(`  ${totals.needsExpert} of those need accessibility expertise — see "Needs accessibility expertise" in the report.`);
   }

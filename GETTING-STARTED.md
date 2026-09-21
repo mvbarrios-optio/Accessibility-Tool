@@ -261,6 +261,10 @@ device or human senses.
   alt text, heading quality, labels — starting from what the scans already found. It gives
   you a draft with evidence and a confidence per criterion; you still answer here. It
   deliberately leaves out the 12 that need a screen reader, a real device or human senses.
+- **Too many questions even with the draft?** `npm run draft:import` records Claude's
+  proposals as answers so you do not retype them. They show in the report as 📝 DRAFTED and
+  count as unverified, not as passes — `npm run audit:confirm` turns them into real answers
+  one Enter at a time, whenever you have time. It buys time, not verification.
 - **Use `?` freely.** Plenty of these criteria need real accessibility knowledge — live
   captions, flashing content, whether alt text is actually meaningful. `?` records that a
   person looked and could not decide, and asks what blocked you. The report then lists it
@@ -304,6 +308,8 @@ Produces:
   **Not a pass yet.**
 - 🙋 NEEDS EXPERT — someone looked and could not judge it (answered `?`). An open gap,
   listed separately with whatever note they left, ready to hand to a specialist.
+- 📝 DRAFTED — Claude proposed it and it was imported, but nobody has confirmed it.
+  Not a pass. `npm run audit:confirm` closes these.
 - ⬜ NOT TESTED — no source touched it. The audit isn't complete while any of these remain.
 - ➖ N/A — marked not applicable during the manual audit.
 

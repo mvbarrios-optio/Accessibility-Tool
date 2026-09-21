@@ -119,6 +119,7 @@ a11y-audit-toolkit/
                              following the site's links when there is no sitemap
   wave-prompt.js             `npm run wave:prompt` — prints the paste-ready WAVE prompt
   assist-prompt.js           `npm run assist:prompt` — has Claude draft the judgement checks
+  import-draft.js            `npm run draft:import` — records that draft, marked unconfirmed
   compare-reports.js         `npm run report:compare` — baseline vs retest: what was fixed
   ask.js                     Shared terminal prompts (safe in CI: never blocks on input)
   run-scans.js               `npm start` — runs axe + Lighthouse + extra checks in one go
@@ -544,6 +545,39 @@ accurate, or whether content flashes above threshold, is not evidence.
 `--only=good` narrows to the 15 it can actually decide; `--criteria=2.4.4,1.1.1` picks
 specific ones, and warns if you name one from the excluded set.
 
+## Taking the draft as answers
+
+Reading Claude's draft under each of 42 questions still means answering 42 questions. If
+that is the bottleneck, import it instead:
+
+```bash
+npm run draft:import
+```
+
+Every proposal becomes a recorded answer carrying who proposed it and that nobody has
+checked it. The trade is stated in the output and honoured by the report: those criteria
+show as **📝 DRAFTED**, count as a coverage gap rather than as passes, and get their own
+section listing what was proposed, at what confidence, with the detail for anything drafted
+as failing so it is actionable before confirmation.
+
+It refuses a draft that oversteps: a proposal on one of the 12 criteria no agent is given
+is rejected outright, as is an unknown criterion. An answer you gave yourself is never
+overwritten (`--force` if you really mean to). `--dry-run` shows what it would do.
+
+Then, whenever there is time:
+
+```bash
+npm run audit:confirm
+```
+
+walks only the unconfirmed ones, showing what Claude proposed and why. Enter agrees and it
+becomes a real answer under your name; typing a different letter answers it yourself.
+Either way the entry keeps `draftedBy` and `draftConfidence`, so the record shows a draft
+was the starting point.
+
+Until confirmed, the report keeps saying so. That is the point: this buys time, not
+verification.
+
 ## Comparing a baseline with a retest
 
 Finding problems is the baseline's job; proving they are gone is the retest's. Keep each
@@ -618,8 +652,8 @@ COVERAGE.md            The per-criterion map of which tool verifies what.
 ```
 
 npm scripts: `setup`, `urls:find`, `start`, `scan:extra`, `scan:extra:fast`,
-`scan:filter`, `wave:prompt`, `assist:prompt`, `audit:manual`, `audit:manual:list`,
-`report:findings`, `report:compare`.
+`scan:filter`, `wave:prompt`, `assist:prompt`, `draft:import`, `audit:manual`,
+`audit:confirm`, `audit:manual:list`, `report:findings`, `report:compare`.
 
 `extra-checks.js` is Chromium-only by design (layout probes + tab-order simulation);
 engine-specific accessibility-tree differences are already covered by the multi-engine axe

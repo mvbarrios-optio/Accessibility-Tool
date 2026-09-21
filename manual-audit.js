@@ -33,6 +33,8 @@ const ASK_ALL = args.includes('--all');
 // Set when run-scans.js already asked; it must not ask the same thing again.
 const DRAFT_FIRST = args.includes('--draft-first');
 const NO_DRAFT = args.includes('--no-draft');
+// Walks only the criteria carrying an imported draft nobody has checked.
+const CONFIRM = args.includes('--confirm');
 const onlyArg = (() => {
   const i = args.findIndex(a => a === '--criteria' || a.startsWith('--criteria='));
   if (i === -1) return null;
@@ -127,21 +129,44 @@ function ask(q) {
   return new Promise(res => waitingAsks.push(res));
 }
 
+const isUnconfirmedDraft = sc => {
+  const e = store.entries[sc];
+  return Boolean(e && e.source === 'draft' && !e.confirmed);
+};
+
 let queue = manualCriteria.filter(c => {
   if (onlyArg) return onlyArg.includes(c.sc);
+  if (CONFIRM) return isUnconfirmedDraft(c.sc);
   if (ASK_ALL) return true;
+  // An imported draft counts as answered for the ordinary pass — that is the
+  // point of importing it — so only --confirm brings it back round.
   return !store.entries[c.sc];
 });
 
 (async () => {
   const p = progress();
+  if (CONFIRM && !queue.length) {
+    console.log(`\nNothing to confirm — no imported draft is waiting.`);
+    console.log(`Drafts arrive via:  npm run assist:prompt  then  npm run draft:import`);
+    if (!stdinClosed) rl.close();
+    return;
+  }
+
   console.log(`\n${'═'.repeat(72)}`);
+  if (CONFIRM) {
+    console.log(`Confirming Claude's draft — ${queue.length} criteri${queue.length === 1 ? 'on' : 'a'} to check`);
+    console.log(`${'═'.repeat(72)}`);
+    console.log(`Each one shows what Claude proposed and why. Agree and it becomes a real`);
+    console.log(`answer under your name; disagree and you answer it yourself. Until then`);
+    console.log(`the report shows them as 📝 DRAFTED and counts them as unverified.`);
+  } else {
   console.log(`WCAG 2.2 AA manual audit — ${queue.length} question(s) to go (${p.answered}/${p.total} answered)`);
   console.log(`${'═'.repeat(72)}`);
   console.log(`This is the part automated tools cannot do. Expect roughly`);
   console.log(`${Math.max(1, Math.round(queue.length * 0.5))}–${Math.max(2, Math.round(queue.length * 1.5))} minutes if you know the site, longer where you have to go and test.`);
   console.log(`\nYou will need: a keyboard, browser zoom, and a screen reader for some`);
   console.log(`questions (NVDA on Windows/Chrome, or VoiceOver on Mac/Safari).`);
+  }
   if (Object.keys(draft).length) {
     console.log(`\nClaude's draft is loaded (${Object.keys(draft).length} criteria from ${DRAFT_FILE}).`);
     console.log(`Its proposal shows under each question it covers. Check it — agreeing`);
@@ -260,11 +285,27 @@ let queue = manualCriteria.filter(c => {
 
     let answer;
     while (true) {
-      answer = (await ask(`   [p]ass  [f]ail  [n]/a  [?]can't judge  [s]kip  [q]uit${prev ? `  (Enter = keep ${prev.result})` : ''}: `)).toLowerCase();
+      const hint = CONFIRM && prev
+        ? `  (Enter = agree with ${prev.result.toUpperCase()})`
+        : prev ? `  (Enter = keep ${prev.result})` : '';
+      answer = (await ask(`   [p]ass  [f]ail  [n]/a  [?]can't judge  [s]kip  [q]uit${hint}: `)).toLowerCase();
       if (answer === '' && prev) { answer = null; break; }
       if (['p', 'f', 'n', '?', 's', 'q'].includes(answer)) break;
       if (stdinClosed) { answer = 'q'; break; }
       console.log('   Please answer p, f, n, ?, s or q.');
+    }
+    // Enter in --confirm is not "leave it alone": it is a person agreeing, which
+    // is the whole difference between a draft and an answer.
+    if (answer === null && CONFIRM && prev) {
+      store.entries[c.sc] = {
+        ...prev, confirmed: true, testedBy: store.testedBy,
+        date: new Date().toISOString().slice(0, 10),
+        draftedBy: 'Claude', draftConfidence: prev.confidence
+      };
+      delete store.entries[c.sc].source;
+      save();
+      console.log(`   ✓ confirmed`);
+      continue;
     }
     if (answer === null) continue;            // keep previous
     if (answer === 'q') break;
@@ -276,6 +317,13 @@ let queue = manualCriteria.filter(c => {
       testedBy: store.testedBy,
       date: new Date().toISOString().slice(0, 10)
     };
+    // Answering over a draft replaces it; it is yours now either way.
+    if (prev && prev.source === 'draft') {
+      entry.draftedBy = 'Claude';
+      entry.draftProposed = prev.result;
+      entry.draftConfidence = prev.confidence;
+      entry.confirmed = true;
+    }
     if (answer === 'f') {
       entry.pages = await ask('   Pages affected (e.g. "all", "/about, /contact"): ');
       entry.component = await ask('   Component / where (e.g. "mobile menu", "contact form"): ');
